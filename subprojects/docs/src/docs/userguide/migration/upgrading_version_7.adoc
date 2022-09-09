@@ -80,11 +80,11 @@ In Gradle 8.0 and above, use the `AntlrSourceDirectorySet` source set extension 
 === Wrapper task configuration
 If `gradle-wrapper.properties` contains the `distributionSha256Sum` property, you must specify a sum. You can specify a sum in the wrapped task configuration or with the `--gradle-distribution-sha256-sum` task option.
 
-=== Changes in the AbstractCodeQualityPlugin class
+==== Changes in the AbstractCodeQualityPlugin class
 
 The deprecated `AbstractCodeQualityPlugin.getJavaPluginConvention()` method was removed in Gradle 8.0. You should use `JavaPluginExtension` instead.
 
-=== Remove implicit `--add-opens` for Gradle workers
+==== Remove implicit `--add-opens` for Gradle workers
 Before Gradle 8.0, Gradle workers on JDK9+ automatically opened JDK modules `java.base/java.util` and `java.base/java.lang` by passing `--add-opens` CLI arguments. This enabled code executed in a Gradle worker to perform deep reflection on JDK internals without warning or failing. Workers no longer use these implicit arguments.
 
 This effects all internal Gradle workers, which are used for a variety of tasks:
@@ -122,7 +122,7 @@ android.experimental.legacyTransform.forceNonIncremental=true
 
 Previously, `org.gradle.api.AntBuilder` extended the deprecated `groovy.util.AntBuilder` class.  It now extends `groovy.ant.AntBuilder`.
 
-==== PluginDeclaration is not serializable
+==== `PluginDeclaration` is not serializable
 
 `org.gradle.plugin.devel.PluginDeclaration` is not serializable anymore.
 If you need to serialize it, you can convert it into your own, serializable class.
@@ -158,6 +158,14 @@ For more information see <<empty_directories_file_tree>>.
 In precompiled script plugins, type safe Kotlin DSL accessor generation now fails the build if a plugin fails to apply.
 
 Starting in Gradle 7.6, builds could enable this behavior with the `org.gradle.kotlin.dsl.precompiled.accessors.strict` system property. This behavior is now default. The property has been deprecated and its usage should be removed. You can find more information about this property <<upgrading_version_7.adoc#strict-kotlin-dsl-precompiled-scripts-accessors, below>>.
+
+==== Init scripts are applied to `buildSrc` builds
+
+TODO - init script specified using `--init-script` are now applied to `buildSrc` builds. This behaviour is now consistent for buildSrc and included builds
+
+==== `buildFinished { }` hook for `buildSrc` runs after task execution
+
+TODO - this is consistent with included builds
 
 ==== Adding `jst.ejb` with the `eclipse wtp' plugin now removes the `jst.utility` facet
 

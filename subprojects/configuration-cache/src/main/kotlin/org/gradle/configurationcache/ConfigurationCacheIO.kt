@@ -130,7 +130,7 @@ class ConfigurationCacheIO internal constructor(
     fun writeRootBuildStateTo(stateFile: ConfigurationCacheStateFile) =
         writeConfigurationCacheState(stateFile) { cacheState ->
             cacheState.run {
-                writeRootBuildState(host.currentBuild)
+                writeRootBuildState(host, host.currentBuild)
             }
         }
 
@@ -138,7 +138,7 @@ class ConfigurationCacheIO internal constructor(
     fun readRootBuildStateFrom(stateFile: ConfigurationCacheStateFile, graph: BuildTreeWorkGraph): BuildTreeWorkGraph.FinalizedGraph {
         return readConfigurationCacheState(stateFile) { state ->
             state.run {
-                readRootBuildState(graph, host::createBuild)
+                readRootBuildState(host, graph)
             }
         }
     }
@@ -147,7 +147,9 @@ class ConfigurationCacheIO internal constructor(
     fun writeIncludedBuildStateTo(stateFile: ConfigurationCacheStateFile, buildTreeState: StoredBuildTreeState) {
         writeConfigurationCacheState(stateFile) { cacheState ->
             cacheState.run {
-                writeBuildState(host.currentBuild, buildTreeState)
+                writeBuildState(host.currentBuild, buildTreeState) {
+                    // All nested builds are written when writing the root build state
+                }
             }
         }
     }
@@ -156,7 +158,10 @@ class ConfigurationCacheIO internal constructor(
     fun readIncludedBuildStateFrom(stateFile: ConfigurationCacheStateFile, includedBuild: ConfigurationCacheBuild) =
         readConfigurationCacheState(stateFile) { state ->
             state.run {
-                readBuildState(includedBuild)
+                readBuildState(includedBuild) {
+                    // All nested builds are read when reading the root build state
+                    emptyList()
+                }
             }
         }
 

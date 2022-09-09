@@ -79,6 +79,12 @@ The [PMD](userguide/pmd_plugin.html) and [CodeNarc](userguide/pmd_plugin.html) p
 
 In Java projects, these tools will use the same version of Java required by the project. In other types of projects, they will use the same version of Java that is used by the Gradle daemon.
 
+#### Run `buildSrc` tasks
+TODO - Can now run the tasks of `buildSrc` from the command-line, using the same syntax as tasks of included builds, eg `gradle buildSrc:build`.
+
+### Init scripts are applied to `buildSrc`
+TODO - init scripts are applied to `buildSrc`, which is the same for included builds.
+
 <!-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ADD RELEASE FEATURES ABOVE
 ==========================================================

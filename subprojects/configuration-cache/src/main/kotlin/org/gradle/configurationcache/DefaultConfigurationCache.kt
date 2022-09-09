@@ -76,6 +76,8 @@ class DefaultConfigurationCache internal constructor(
 
         fun createBuild(settingsFile: File?, rootProjectName: String): ConfigurationCacheBuild
 
+        fun visitBuilds(visitor: (VintageGradleBuild) -> Unit)
+
         fun <T> service(serviceType: Class<T>): T
 
         fun <T> factory(serviceType: Class<T>): Factory<T>

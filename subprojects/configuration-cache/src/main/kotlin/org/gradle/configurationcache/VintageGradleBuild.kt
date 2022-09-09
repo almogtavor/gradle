@@ -18,9 +18,11 @@ package org.gradle.configurationcache
 
 import org.gradle.api.internal.GradleInternal
 import org.gradle.execution.plan.Node
+import org.gradle.internal.build.BuildState
 
 
 interface VintageGradleBuild {
+    val state: BuildState
     val gradle: GradleInternal
     val scheduledWork: List<Node>
 }

@@ -30,8 +30,8 @@ import org.gradle.initialization.DefaultProjectDescriptor
 import org.gradle.initialization.DefaultSettings
 import org.gradle.initialization.layout.BuildLayout
 import org.gradle.internal.Factory
+import org.gradle.internal.build.BuildState
 import org.gradle.internal.build.BuildStateRegistry
-import org.gradle.internal.build.CompositeBuildParticipantBuildState
 import org.gradle.internal.build.IncludedBuildState
 import org.gradle.internal.file.PathToFileResolver
 import org.gradle.internal.reflect.Instantiator
@@ -48,10 +48,16 @@ class ConfigurationCacheHost internal constructor(
 ) : DefaultConfigurationCache.Host {
 
     override val currentBuild: VintageGradleBuild =
-        DefaultVintageGradleBuild(gradle)
+        DefaultVintageGradleBuild(gradle.owner)
 
     override fun createBuild(settingsFile: File?, rootProjectName: String): ConfigurationCacheBuild =
         DefaultConfigurationCacheBuild(gradle, service(), settingsFile, rootProjectName)
+
+    override fun visitBuilds(visitor: (VintageGradleBuild) -> Unit) {
+        service(BuildStateRegistry::class.java).visitBuilds {
+            visitor(DefaultVintageGradleBuild(it))
+        }
+    }
 
     override fun <T> service(serviceType: Class<T>): T =
         gradle.services.get(serviceType)
@@ -60,7 +66,10 @@ class ConfigurationCacheHost internal constructor(
         gradle.services.getFactory(serviceType)
 
     private
-    class DefaultVintageGradleBuild(override val gradle: GradleInternal) : VintageGradleBuild {
+    class DefaultVintageGradleBuild(override val state: BuildState) : VintageGradleBuild {
+        override val gradle: GradleInternal
+            get() = state.mutableModel
+
         override val scheduledWork: List<Node>
             get() {
                 lateinit var nodes: List<Node>
@@ -81,7 +90,6 @@ class ConfigurationCacheHost internal constructor(
         val buildDirs = mutableMapOf<Path, File>()
 
         init {
-            require(gradle.owner is CompositeBuildParticipantBuildState)
             gradle.run {
                 settings = createSettings()
                 setBaseProjectClassLoaderScope(coreScope)
@@ -169,7 +177,7 @@ class ConfigurationCacheHost internal constructor(
             service<BuildLayout>().settingsDir
 
         override
-        val state: CompositeBuildParticipantBuildState = gradle.owner as CompositeBuildParticipantBuildState
+        val state = gradle.owner
     }
 
     private
