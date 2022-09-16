@@ -270,7 +270,7 @@ public class JavaPlugin implements Plugin<Project> {
         final ProjectInternal projectInternal = (ProjectInternal) project;
 
         project.getPluginManager().apply(JavaBasePlugin.class);
-        project.getPluginManager().apply("org.gradle.jvm-test-suite");
+        project.getPluginManager().apply(JvmTestSuitePlugin.class);
 
         JavaPluginExtension javaExtension = project.getExtensions().getByType(JavaPluginExtension.class);
         SourceSet mainSourceSet = javaExtension.getSourceSets().create(SourceSet.MAIN_SOURCE_SET_NAME);
@@ -279,7 +279,7 @@ public class JavaPlugin implements Plugin<Project> {
         BuildOutputCleanupRegistry buildOutputCleanupRegistry = projectInternal.getServices().get(BuildOutputCleanupRegistry.class);
         PublishArtifact jarArtifact = configureArchives(project, mainSourceSet);
 
-        configureBuiltInTest(project, mainSourceSet);
+        configureBuiltInTest(project);
         configureSourceSets(javaExtension, buildOutputCleanupRegistry);
         createConsumableConfigurations(project, mainSourceSet, jarArtifact);
         configureJavaDocTask(null, mainSourceSet, project.getTasks(), javaExtension);
@@ -291,28 +291,25 @@ public class JavaPlugin implements Plugin<Project> {
         pluginExtension.getSourceSets().all(sourceSet -> buildOutputCleanupRegistry.registerOutputs(sourceSet.getOutput()));
     }
 
-    private static void configureBuiltInTest(Project project, SourceSet mainSourceSet) {
+    /**
+     * The IntelliJ model builder relies on the main source set being created before the tests.
+     * So, this code here cannot live in the JvmTestSuitePlugin and must live here, so that we
+     * can ensure we register this test suite after we've created the main source set.
+     */
+    private static void configureBuiltInTest(Project project) {
         TestingExtension testing = project.getExtensions().getByType(TestingExtension.class);
         final NamedDomainObjectProvider<JvmTestSuite> testSuite = testing.getSuites().register(DEFAULT_TEST_SUITE_NAME, JvmTestSuite.class, suite -> {
             final SourceSet testSourceSet = suite.getSources();
             ConfigurationContainer configurations = project.getConfigurations();
 
-            Configuration testImplementationConfiguration = configurations.getByName(testSourceSet.getImplementationConfigurationName());
-            Configuration testRuntimeOnlyConfiguration = configurations.getByName(testSourceSet.getRuntimeOnlyConfigurationName());
             Configuration testCompileClasspathConfiguration = configurations.getByName(testSourceSet.getCompileClasspathConfigurationName());
             Configuration testRuntimeClasspathConfiguration = configurations.getByName(testSourceSet.getRuntimeClasspathConfigurationName());
 
-            // We cannot reference the main source set lazily (via a callable) since the IntelliJ model builder
-            // relies on the main source set being created before the tests. So, this code here cannot live in the
-            // JvmTestSuitePlugin and must live here, so that we can ensure we register this test suite after we've
-            // created the main source set.
-            final FileCollection mainSourceSetOutput = mainSourceSet.getOutput();
-            final FileCollection testSourceSetOutput = testSourceSet.getOutput();
-            testSourceSet.setCompileClasspath(project.getObjects().fileCollection().from(mainSourceSetOutput, testCompileClasspathConfiguration));
-            testSourceSet.setRuntimeClasspath(project.getObjects().fileCollection().from(testSourceSetOutput, mainSourceSetOutput, testRuntimeClasspathConfiguration));
 
-            testImplementationConfiguration.extendsFrom(configurations.getByName(mainSourceSet.getImplementationConfigurationName()));
-            testRuntimeOnlyConfiguration.extendsFrom(configurations.getByName(mainSourceSet.getRuntimeOnlyConfigurationName()));
+            testSourceSet.setCompileClasspath(testCompileClasspathConfiguration);
+            testSourceSet.setRuntimeClasspath(project.getObjects().fileCollection().from(testSourceSet.getOutput(), testRuntimeClasspathConfiguration));
+
+            suite.getDependencies().getImplementation().add(suite.getDependencies().projectInternalView());
         });
 
         // Force the realization of this test suite, targets and task

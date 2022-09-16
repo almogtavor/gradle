@@ -31,7 +31,9 @@ import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.internal.file.FileOperations;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.plugins.JvmTestSuitePlugin;
 import org.gradle.api.plugins.ReportingBasePlugin;
 import org.gradle.api.plugins.jvm.JvmTestSuite;
@@ -40,6 +42,7 @@ import org.gradle.api.reporting.DirectoryReport;
 import org.gradle.api.reporting.Report;
 import org.gradle.api.reporting.ReportingExtension;
 import org.gradle.api.reporting.SingleFileReport;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
@@ -85,6 +88,9 @@ public class JacocoPlugin implements Plugin<Project> {
 
     @Override
     public void apply(Project project) {
+        project.getPluginManager().apply(JavaBasePlugin.class);
+        JavaPluginExtension java = project.getExtensions().getByType(JavaPluginExtension.class);
+
         project.getPluginManager().apply(ReportingBasePlugin.class);
         this.project = project;
         addJacocoConfigurations();
@@ -100,30 +106,31 @@ public class JacocoPlugin implements Plugin<Project> {
         applyToDefaultTasks(extension);
         configureJacocoReportsDefaults(extension);
         addDefaultReportAndCoverageVerificationTasks(extension);
-        configureCoverageDataElementsVariants(project);
+        configureCoverageDataElementsVariants(project, java);
     }
 
-    private void configureCoverageDataElementsVariants(Project project) {
+    private void configureCoverageDataElementsVariants(Project project, JavaPluginExtension java) {
         project.getPlugins().withType(JvmTestSuitePlugin.class, p -> {
             final TestingExtension testing = project.getExtensions().getByType(TestingExtension.class);
             final ExtensiblePolymorphicDomainObjectContainer<TestSuite> testSuites = testing.getSuites();
 
             testSuites.withType(JvmTestSuite.class).configureEach(suite -> {
+                SourceSet mainSourceSet = java.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
                 suite.getTargets().configureEach(target -> {
-                    createCoverageDataVariant(project, suite, target);
+                    createCoverageDataVariant(project, suite, target, mainSourceSet);
                 });
             });
         });
     }
 
-    private void createCoverageDataVariant(Project project, JvmTestSuite suite, JvmTestSuiteTarget target) {
+    private void createCoverageDataVariant(Project project, JvmTestSuite suite, JvmTestSuiteTarget target, SourceSet mainSourceSet) {
         final Configuration variant = project.getConfigurations().create(COVERAGE_DATA_ELEMENTS_VARIANT_PREFIX + StringUtils.capitalize(target.getName()));
         variant.setDescription("Binary data file containing results of Jacoco test coverage reporting for the " + suite.getName() + " Test Suite's " + target.getName() + " target.");
         variant.setVisible(false);
         variant.setCanBeResolved(false);
         variant.setCanBeConsumed(true);
-        variant.extendsFrom(project.getConfigurations().getByName(suite.getSources().getImplementationConfigurationName()),
-                project.getConfigurations().getByName(suite.getSources().getRuntimeOnlyConfigurationName()));
+        variant.extendsFrom(project.getConfigurations().getByName(mainSourceSet.getImplementationConfigurationName()),
+                project.getConfigurations().getByName(mainSourceSet.getRuntimeOnlyConfigurationName()));
 
         final ObjectFactory objects = project.getObjects();
         variant.attributes(attributes -> {
