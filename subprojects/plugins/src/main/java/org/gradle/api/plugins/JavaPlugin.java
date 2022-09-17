@@ -16,6 +16,7 @@
 
 package org.gradle.api.plugins;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.gradle.api.NamedDomainObjectProvider;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -246,7 +247,8 @@ public class JavaPlugin implements Plugin<Project> {
 
     private static final String SOURCE_ELEMENTS_VARIANT_NAME = "mainSourceElements";
 
-    private static final String COMPILE_ELEMENTS_CONFIGURATION_NAME = "compileElements";
+    @VisibleForTesting
+    static final String COMPILE_ELEMENTS_CONFIGURATION_NAME = "compileElements";
 
     private final ObjectFactory objectFactory;
     private final SoftwareComponentFactory softwareComponentFactory;
@@ -270,7 +272,7 @@ public class JavaPlugin implements Plugin<Project> {
         final ProjectInternal projectInternal = (ProjectInternal) project;
 
         project.getPluginManager().apply(JavaBasePlugin.class);
-        project.getPluginManager().apply(JvmTestSuitePlugin.class);
+        project.getPluginManager().apply("org.gradle.jvm-test-suite");
 
         JavaPluginExtension javaExtension = project.getExtensions().getByType(JavaPluginExtension.class);
         SourceSet mainSourceSet = javaExtension.getSourceSets().create(SourceSet.MAIN_SOURCE_SET_NAME);
