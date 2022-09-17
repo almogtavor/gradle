@@ -307,7 +307,6 @@ public class JavaPlugin implements Plugin<Project> {
             Configuration testCompileClasspathConfiguration = configurations.getByName(testSourceSet.getCompileClasspathConfigurationName());
             Configuration testRuntimeClasspathConfiguration = configurations.getByName(testSourceSet.getRuntimeClasspathConfigurationName());
 
-
             testSourceSet.setCompileClasspath(testCompileClasspathConfiguration);
             testSourceSet.setRuntimeClasspath(project.getObjects().fileCollection().from(testSourceSet.getOutput(), testRuntimeClasspathConfiguration));
 

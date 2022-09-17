@@ -131,6 +131,8 @@ public class JacocoPlugin implements Plugin<Project> {
         variant.setCanBeConsumed(true);
         variant.extendsFrom(project.getConfigurations().getByName(mainSourceSet.getImplementationConfigurationName()),
                 project.getConfigurations().getByName(mainSourceSet.getRuntimeOnlyConfigurationName()));
+        variant.extendsFrom(project.getConfigurations().getByName(suite.getSources().getImplementationConfigurationName()),
+            project.getConfigurations().getByName(suite.getSources().getRuntimeOnlyConfigurationName()));
 
         final ObjectFactory objects = project.getObjects();
         variant.attributes(attributes -> {

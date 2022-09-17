@@ -77,7 +77,10 @@ class ScalaPluginTest extends AbstractProjectBuilderSpec {
             testSourceSet.java.destinationDirectory.get().asFile,
         ]
         testTask.source as List == testSourceSet.scala as List
-        testTask dependsOn(JavaPlugin.COMPILE_TEST_JAVA_TASK_NAME, JavaPlugin.JAR_TASK_NAME)
+        testTask dependsOn(
+            JavaPlugin.COMPILE_TEST_JAVA_TASK_NAME, JavaPlugin.JAR_TASK_NAME,
+            'compileScala' // See: https://github.com/gradle/gradle/pull/14435
+        )
     }
 
     def "compile dependency to java compilation can be turned off by changing the compile task classpath"() {
@@ -102,7 +105,10 @@ class ScalaPluginTest extends AbstractProjectBuilderSpec {
         testTask  instanceof ScalaCompile
         testTask.classpath.files as List == jarTask.outputs.files.files as List
         testTask.source as List == testSourceSet.scala as List
-        testTask dependsOn(JavaPlugin.JAR_TASK_NAME)
+        testTask dependsOn(
+            JavaPlugin.JAR_TASK_NAME,
+            'compileScala' // See: https://github.com/gradle/gradle/pull/14435
+        )
         testTask not(dependsOn(JavaPlugin.COMPILE_TEST_JAVA_TASK_NAME))
     }
 
