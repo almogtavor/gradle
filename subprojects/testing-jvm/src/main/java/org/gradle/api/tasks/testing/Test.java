@@ -22,7 +22,6 @@ import groovy.lang.DelegatesTo;
 import org.gradle.StartParameter;
 import org.gradle.api.Action;
 import org.gradle.api.Incubating;
-import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.NonNullApi;
 import org.gradle.api.file.ConfigurableFileCollection;
@@ -45,7 +44,6 @@ import org.gradle.api.internal.tasks.testing.worker.TestWorker;
 import org.gradle.api.jvm.ModularitySpec;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
-import org.gradle.api.provider.Provider;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Classpath;
@@ -79,9 +77,7 @@ import org.gradle.internal.time.Clock;
 import org.gradle.internal.work.WorkerLeaseService;
 import org.gradle.jvm.toolchain.JavaLauncher;
 import org.gradle.jvm.toolchain.JavaToolchainService;
-import org.gradle.jvm.toolchain.JavaToolchainSpec;
 import org.gradle.jvm.toolchain.internal.CurrentJvmToolchainSpec;
-import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec;
 import org.gradle.process.CommandLineArgumentProvider;
 import org.gradle.process.JavaDebugOptions;
 import org.gradle.process.JavaForkOptions;
@@ -100,7 +96,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.gradle.util.internal.ConfigureUtil.configureUsing;
 
 /**
@@ -197,12 +192,18 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
         forkOptions.setEnableAssertions(true);
         forkOptions.setExecutable(null);
         modularity = getObjectFactory().newInstance(DefaultModularitySpec.class);
-        javaLauncher = getObjectFactory().property(JavaLauncher.class);
+        javaLauncher = getObjectFactory().property(JavaLauncher.class)
+            .convention(getToolchainService().launcherFor(new CurrentJvmToolchainSpec(getObjectFactory())));
         testFramework = getObjectFactory().property(TestFramework.class).convention(new JUnitTestFramework(this, (DefaultTestFilter) getFilter(), true));
     }
 
     @Inject
     protected ObjectFactory getObjectFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected JavaToolchainService getToolchainService() {
         throw new UnsupportedOperationException();
     }
 
@@ -278,7 +279,7 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
      */
     @Input
     public JavaVersion getJavaVersion() {
-        return JavaVersion.toVersion(getLauncherTool().get().getMetadata().getLanguageVersion().asInt());
+        return JavaVersion.toVersion(getJavaLauncher().get().getMetadata().getLanguageVersion().asInt());
     }
 
     /**
@@ -621,7 +622,8 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
     }
 
     private void copyToolchainAsExecutable(ProcessForkOptions target) {
-        target.setExecutable(getEffectiveExecutable());
+        String executable = getJavaLauncher().get().getExecutablePath().toString();
+        target.setExecutable(executable);
     }
 
     /**
@@ -641,7 +643,6 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
      */
     @Override
     protected JvmTestExecutionSpec createTestExecutionSpec() {
-        validateToolchainConfiguration();
         JavaForkOptions javaForkOptions = getForkOptionsFactory().newJavaForkOptions();
         copyTo(javaForkOptions);
         JavaModuleDetector javaModuleDetector = getJavaModuleDetector();
@@ -649,12 +650,6 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
         FileCollection classpath = javaModuleDetector.inferClasspath(testIsModule, stableClasspath);
         FileCollection modulePath = javaModuleDetector.inferModulePath(testIsModule, stableClasspath);
         return new JvmTestExecutionSpec(getTestFramework(), classpath, modulePath, getCandidateClassFiles(), isScanForTestClasses(), getTestClassesDirs(), getPath(), getIdentityPath(), getForkEvery(), javaForkOptions, getMaxParallelForks(), getPreviousFailedTestClasses());
-    }
-
-    private void validateToolchainConfiguration() {
-        if (javaLauncher.isPresent()) {
-            checkState(forkOptions.getExecutable() == null, "Must not use `executable` property on `Test` together with `javaLauncher` property");
-        }
     }
 
     private Set<String> getPreviousFailedTestClasses() {
@@ -1253,44 +1248,5 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
     @Optional
     public Property<JavaLauncher> getJavaLauncher() {
         return javaLauncher;
-    }
-
-    private String getEffectiveExecutable() {
-        return getLauncherTool().get().getExecutablePath().toString();
-    }
-
-    private Provider<JavaLauncher> getLauncherTool() {
-        JavaToolchainSpec toolchainSpec = determineExplicitToolchain();
-        if (toolchainSpec == null) {
-            if (javaLauncher.isPresent()) {
-                return javaLauncher;
-            } else {
-                toolchainSpec = new CurrentJvmToolchainSpec(getObjectFactory());
-            }
-        }
-
-        return getJavaToolchainService().launcherFor(toolchainSpec);
-    }
-
-    @Nullable
-    private JavaToolchainSpec determineExplicitToolchain() {
-        String customExecutable = forkOptions.getExecutable();
-        if (customExecutable != null) {
-            File executable = new File(customExecutable);
-            if (executable.exists()) {
-                // Relying on the layout of the toolchain distribution: <JAVA HOME>/bin/<executable>
-                File parentJavaHome = executable.getParentFile().getParentFile();
-                return new SpecificInstallationToolchainSpec(getObjectFactory(), parentJavaHome);
-            } else {
-                throw new InvalidUserDataException("The configured executable does not exist (" + executable.getAbsolutePath() + ")");
-            }
-        }
-
-        return null;
-    }
-
-    @Inject
-    protected JavaToolchainService getJavaToolchainService() {
-        throw new UnsupportedOperationException();
     }
 }

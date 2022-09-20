@@ -17,7 +17,6 @@
 package org.gradle.api.tasks
 
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
-import org.gradle.integtests.fixtures.AvailableJavaHomes
 import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
 import org.gradle.integtests.fixtures.jvm.JavaToolchainBuildOperationsFixture
 import org.gradle.integtests.fixtures.versions.KotlinGradlePluginVersions
@@ -25,8 +24,11 @@ import org.gradle.internal.jvm.Jvm
 import org.gradle.internal.jvm.inspection.JvmInstallationMetadata
 import org.gradle.test.fixtures.file.TestFile
 import org.gradle.util.internal.TextUtil
-import org.gradle.util.internal.ToBeImplemented
 import spock.lang.Issue
+
+import static org.gradle.integtests.fixtures.AvailableJavaHomes.differentJdk
+import static org.gradle.integtests.fixtures.AvailableJavaHomes.differentVersion
+import static org.gradle.integtests.fixtures.AvailableJavaHomes.getJvmInstallationMetadata
 
 class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpec implements JavaToolchainBuildOperationsFixture {
 
@@ -45,21 +47,21 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         """
     }
 
-    @ToBeImplemented("All cases are supported except up-to-dateness for the javadoc task when toolchains are not configured")
+    // TODO: mark the issue as fixed in PR
     @Issue("https://github.com/gradle/gradle/issues/21386")
     def "emits toolchain usages for a build #configureToolchain configured toolchain for '#task' task"() {
         JvmInstallationMetadata jdkMetadata
         if (configureToolchain == "without") {
-            jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(Jvm.current())
+            jdkMetadata = getJvmInstallationMetadata(Jvm.current())
         } else {
-            jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentJdk)
+            jdkMetadata = getJvmInstallationMetadata(differentJdk)
 
             if (configureToolchain == "with java plugin") {
                 configureToolchainViaJavaPlugin(jdkMetadata)
             } else if (configureToolchain == "with per task") {
                 configureToolchainPerTask(jdkMetadata)
             } else if (configureToolchain == "with java plugin and per task") {
-                configureToolchainViaJavaPlugin(AvailableJavaHomes.getJvmInstallationMetadata(Jvm.current()))
+                configureToolchainViaJavaPlugin(getJvmInstallationMetadata(Jvm.current()))
                 configureToolchainPerTask(jdkMetadata)
             } else {
                 throw new IllegalArgumentException("Unknown configureToolchain: " + configureToolchain)
@@ -92,30 +94,28 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         events = toolchainEvents(task)
         then:
         skipped(task)
-        if (emitsWhenUpToDate) {
-            assertToolchainUsages(events, jdkMetadata, tool)
-        }
+        assertToolchainUsages(events, jdkMetadata, tool)
 
         where:
-        task           | tool           | configureToolchain              | emitsWhenUpToDate
-        ":compileJava" | "JavaCompiler" | "with java plugin"              | true
-        ":compileJava" | "JavaCompiler" | "with per task"                 | true
-        ":compileJava" | "JavaCompiler" | "with java plugin and per task" | true
-        ":compileJava" | "JavaCompiler" | "without"                       | true
-        ":test"        | "JavaLauncher" | "with java plugin"              | true
-        ":test"        | "JavaLauncher" | "with per task"                 | true
-        ":test"        | "JavaLauncher" | "with java plugin and per task" | true
-        ":test"        | "JavaLauncher" | "without"                       | true
-        ":javadoc"     | "JavadocTool"  | "with java plugin"              | true
-        ":javadoc"     | "JavadocTool"  | "with per task"                 | true
-        ":javadoc"     | "JavadocTool"  | "with java plugin and per task" | true
-        ":javadoc"     | "JavadocTool"  | "without"                       | false
+        task           | tool           | configureToolchain
+        ":compileJava" | "JavaCompiler" | "with java plugin"
+        ":compileJava" | "JavaCompiler" | "with per task"
+        ":compileJava" | "JavaCompiler" | "with java plugin and per task"
+        ":compileJava" | "JavaCompiler" | "without"
+        ":test"        | "JavaLauncher" | "with java plugin"
+        ":test"        | "JavaLauncher" | "with per task"
+        ":test"        | "JavaLauncher" | "with java plugin and per task"
+        ":test"        | "JavaLauncher" | "without"
+        ":javadoc"     | "JavadocTool"  | "with java plugin"
+        ":javadoc"     | "JavadocTool"  | "with per task"
+        ":javadoc"     | "JavadocTool"  | "with java plugin and per task"
+        ":javadoc"     | "JavadocTool"  | "without"
     }
 
     def "emits toolchain usages for a custom task that uses a toolchain property"() {
         def task = ":myToolchainTask"
 
-        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentJdk)
+        JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentJdk)
 
         buildFile << """
             abstract class ToolchainTask extends DefaultTask {
@@ -157,8 +157,8 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
     def "emits toolchain usages for a custom task that uses two different toolchains"() {
         def task = ":myToolchainTask"
 
-        JvmInstallationMetadata jdkMetadata1 = AvailableJavaHomes.getJvmInstallationMetadata(Jvm.current())
-        JvmInstallationMetadata jdkMetadata2 = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentVersion)
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(differentVersion)
 
         buildFile << """
             abstract class ToolchainTask extends DefaultTask {
@@ -214,8 +214,8 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
     }
 
     def "emits toolchain usages for custom tasks each using a different toolchain"() {
-        JvmInstallationMetadata jdkMetadata1 = AvailableJavaHomes.getJvmInstallationMetadata(Jvm.current())
-        JvmInstallationMetadata jdkMetadata2 = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentVersion)
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(differentVersion)
 
         buildFile << """
             abstract class ToolchainTask extends DefaultTask {
@@ -266,7 +266,7 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
     }
 
     def "emits toolchain usages for compilation that configures java home via fork options"() {
-        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentJdk)
+        JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentJdk)
 
         buildFile << """
             compileJava {
@@ -295,9 +295,75 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         assertToolchainUsages(events, jdkMetadata, "JavaCompiler")
     }
 
+    def "emits toolchain usages for compilation that configures java home overriding toolchain from java extension"() {
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        configureToolchainViaJavaPlugin(jdkMetadata1)
+
+        buildFile << """
+            compileJava {
+                options.forkOptions.javaHome = file("${TextUtil.normaliseFileSeparators(jdkMetadata2.javaHome.toString())}")
+            }
+        """
+
+        file("src/main/java/Foo.java") << """
+            public class Foo {}
+        """
+
+        def task = ":compileJava"
+
+        when:
+        withInstallations(jdkMetadata1, jdkMetadata2).run(task)
+        def events = toolchainEvents(task)
+        then:
+        executedAndNotSkipped(task)
+        assertToolchainUsages(events, jdkMetadata2, "JavaCompiler")
+
+        when:
+        withInstallations(jdkMetadata1, jdkMetadata2).run(task)
+        events = toolchainEvents(task)
+        then:
+        skipped(task)
+        assertToolchainUsages(events, jdkMetadata2, "JavaCompiler")
+    }
+
+    def "emits toolchain usages for compilation that configures compiler in task overriding toolchain from java home"() {
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        configureToolchainPerTask(jdkMetadata1)
+
+        buildFile << """
+            compileJava {
+                options.forkOptions.javaHome = file("${TextUtil.normaliseFileSeparators(jdkMetadata2.javaHome.toString())}")
+            }
+        """
+
+        file("src/main/java/Foo.java") << """
+            public class Foo {}
+        """
+
+        def task = ":compileJava"
+
+        when:
+        withInstallations(jdkMetadata1, jdkMetadata2).run(task)
+        def events = toolchainEvents(task)
+        then:
+        executedAndNotSkipped(task)
+        assertToolchainUsages(events, jdkMetadata1, "JavaCompiler")
+
+        when:
+        withInstallations(jdkMetadata1, jdkMetadata1).run(task)
+        events = toolchainEvents(task)
+        then:
+        skipped(task)
+        assertToolchainUsages(events, jdkMetadata1, "JavaCompiler")
+    }
+
     def "emits toolchain usages for compilation that configures java home via fork options pointing outside installations"() {
-        JvmInstallationMetadata jdkMetadata1 = AvailableJavaHomes.getJvmInstallationMetadata(Jvm.current())
-        JvmInstallationMetadata jdkMetadata2 = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentVersion)
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(differentVersion)
 
         buildFile << """
             compileJava {
@@ -328,7 +394,7 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
 
     @Issue("https://github.com/gradle/gradle/issues/21367")
     def "emits toolchain usages for test that configures executable path"() {
-        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentVersion)
+        JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentVersion)
 
         buildFile << """
             compileTestJava {
@@ -370,9 +436,95 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         assertToolchainUsages(events, jdkMetadata, "JavaLauncher")
     }
 
+    def "emits toolchain usages for test that configures executable path overriding toolchain java extension"() {
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        configureToolchainViaJavaPlugin(jdkMetadata1)
+
+        buildFile << """
+            compileTestJava {
+                javaCompiler = javaToolchains.compilerFor {
+                    languageVersion = JavaLanguageVersion.of(${jdkMetadata2.languageVersion.majorVersion})
+                }
+            }
+
+            def javaExecutable = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(${jdkMetadata2.languageVersion.majorVersion})
+            }.get().executablePath
+
+            test {
+                executable = javaExecutable
+            }
+        """
+
+        file("src/test/java/FooTest.java") << """
+            public class FooTest {
+                @org.junit.Test
+                public void test() {}
+            }
+        """
+
+        def task = ":test"
+
+        when:
+        withInstallations(jdkMetadata1, jdkMetadata2).run(task)
+        def events = toolchainEvents(task)
+        then:
+        executedAndNotSkipped(task)
+        assertToolchainUsages(events, jdkMetadata2, "JavaLauncher")
+
+        when:
+        withInstallations(jdkMetadata1, jdkMetadata2).run(task)
+        events = toolchainEvents(task)
+        then:
+        skipped(task)
+        assertToolchainUsages(events, jdkMetadata2, "JavaLauncher")
+    }
+
+    def "emits toolchain usages for test that configures executable path overriding toolchain java extension"() {
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        configureToolchainPerTask(jdkMetadata1)
+
+        buildFile << """
+            def javaExecutable = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(${jdkMetadata2.languageVersion.majorVersion})
+            }.get().executablePath
+
+            test {
+                executable = javaExecutable
+            }
+        """
+
+        file("src/test/java/FooTest.java") << """
+            public class FooTest {
+                @org.junit.Test
+                public void test() {}
+            }
+        """
+
+        def task = ":test"
+
+        when:
+        withInstallations(jdkMetadata1, jdkMetadata2).run(task)
+        def events = toolchainEvents(task)
+        then:
+        executedAndNotSkipped(task)
+        assertToolchainUsages(events, jdkMetadata1, "JavaLauncher")
+
+        when:
+        withInstallations(jdkMetadata1, jdkMetadata2).run(task)
+        events = toolchainEvents(task)
+        then:
+        skipped(task)
+        assertToolchainUsages(events, jdkMetadata1, "JavaLauncher")
+    }
+
     @Issue("https://github.com/gradle/gradle/issues/21368")
     def "emits toolchain usages when configuring toolchains for #kotlinPlugin Kotlin plugin '#kotlinPluginVersion'"() {
-        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentVersion)
+        JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentVersion)
 
         // override setup
         buildFile.text = """
@@ -425,8 +577,8 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         eventsOnCompile = toolchainEvents(":compileKotlin")
         eventsOnTest = toolchainEvents(":test")
         then:
-        if (!isAlwaysUpToDate && Jvm.current().javaVersion.java8 && GradleContextualExecuter.configCache) {
-            // For Kotlin 1.6 the compilation is not up-to-date with configuration caching when running on Java 8
+        if (!isAlwaysUpToDate && GradleContextualExecuter.configCache) {
+            // For Kotlin 1.6 the compilation is not up-to-date with configuration caching
             executedAndNotSkipped(":compileKotlin")
         } else {
             skipped(":compileKotlin", ":test")
@@ -446,7 +598,7 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
     def "emits toolchain usages when task fails for 'compileJava' task"() {
         def task = ":compileJava"
 
-        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentJdk)
+        JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentJdk)
 
         configureToolchainViaJavaPlugin(jdkMetadata)
 
@@ -467,7 +619,7 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
     def "emits toolchain usages when task fails for 'test' task"() {
         def task = ":test"
 
-        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentJdk)
+        JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentJdk)
 
         configureToolchainViaJavaPlugin(jdkMetadata)
 
@@ -490,7 +642,7 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
     def "emits toolchain usages when task fails for 'javadoc' task"() {
         def task = ":javadoc"
 
-        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentJdk)
+        JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentJdk)
 
         configureToolchainViaJavaPlugin(jdkMetadata)
 
@@ -511,7 +663,7 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
     }
 
     def "ignores toolchain usages at configuration time"() {
-        JvmInstallationMetadata jdkMetadata = AvailableJavaHomes.getJvmInstallationMetadata(AvailableJavaHomes.differentJdk)
+        JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentJdk)
         buildFile << """
             println(javaToolchains.launcherFor {
                 languageVersion = JavaLanguageVersion.of(${jdkMetadata.languageVersion.majorVersion})

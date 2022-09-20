@@ -58,9 +58,11 @@ import org.gradle.jvm.toolchain.JavaToolchainSpec;
 import org.gradle.jvm.toolchain.internal.DefaultToolchainSpec;
 import org.gradle.jvm.toolchain.internal.JavaToolchainQueryService;
 import org.gradle.jvm.toolchain.internal.JavaToolchainSpecInternal;
+import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.language.jvm.tasks.ProcessResources;
 
+import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.io.File;
 import java.util.Set;
@@ -181,8 +183,24 @@ public class JavaBasePlugin implements Plugin<Project> {
             compileTask.getOptions().getHeaderOutputDirectory().convention(target.getLayout().getBuildDirectory().dir(generatedHeadersDir));
             JavaPluginExtension javaPluginExtension = target.getExtensions().getByType(JavaPluginExtension.class);
             compileTask.getModularity().getInferModulePath().convention(javaPluginExtension.getModularity().getInferModulePath());
-            compileTask.getJavaCompiler().convention(getToolchainTool(target, JavaToolchainService::compilerFor));
+            ObjectFactory objectFactory = target.getObjects();
+            Provider<JavaToolchainSpec> toolchainOverrideSpec = target.provider(() -> getJavaCompileToolchainSpecOverride(compileTask, objectFactory));
+            compileTask.getJavaCompiler().convention(getToolchainTool(target, JavaToolchainService::compilerFor, toolchainOverrideSpec));
         });
+    }
+
+    @Nullable
+    private JavaToolchainSpec getJavaCompileToolchainSpecOverride(JavaCompile compileTask, ObjectFactory objectFactory) {
+        File customJavaHome = compileTask.getOptions().getForkOptions().getJavaHome();
+        if (customJavaHome != null) {
+            return new SpecificInstallationToolchainSpec(objectFactory, customJavaHome);
+        }
+
+        String customExecutable = compileTask.getOptions().getForkOptions().getExecutable();
+        if (customExecutable != null) {
+            return getJavaHomeExecutableToolchainSpec(objectFactory, customExecutable);
+        }
+        return null;
     }
 
     private void createProcessResourcesTask(final SourceSet sourceSet, final SourceDirectorySet resourceSet, final Project target) {
@@ -318,9 +336,21 @@ public class JavaBasePlugin implements Plugin<Project> {
         project.getTasks().withType(Javadoc.class).configureEach(javadoc -> {
             javadoc.getConventionMapping().map("destinationDir", () -> new File(javaPluginExtension.getDocsDir().get().getAsFile(), "javadoc"));
             javadoc.getConventionMapping().map("title", () -> project.getExtensions().getByType(ReportingExtension.class).getApiDocTitle());
-            javadoc.getJavadocTool().convention(getToolchainTool(project, JavaToolchainService::javadocToolFor));
+            ObjectFactory objectFactory = project.getObjects();
+            Provider<JavaToolchainSpec> toolchainOverrideSpec = project.provider(() -> getJavadocToolchainSpecOverride(javadoc, objectFactory));
+            javadoc.getJavadocTool().convention(getToolchainTool(project, JavaToolchainService::javadocToolFor, toolchainOverrideSpec));
         });
     }
+
+    @Nullable
+    private JavaToolchainSpec getJavadocToolchainSpecOverride(Javadoc javadoc, ObjectFactory objectFactory) {
+        String customExecutable = javadoc.getExecutable();
+        if (customExecutable != null) {
+            return getJavaHomeExecutableToolchainSpec(objectFactory, customExecutable);
+        }
+        return null;
+    }
+
 
     private void configureBuildNeeded(Project project) {
         project.getTasks().register(BUILD_NEEDED_TASK_NAME, buildTask -> {
@@ -350,13 +380,44 @@ public class JavaBasePlugin implements Plugin<Project> {
         htmlReport.getOutputLocation().convention(javaPluginExtension.getTestReportDir().dir(test.getName()));
         test.getBinaryResultsDirectory().convention(javaPluginExtension.getTestResultsDir().dir(test.getName() + "/binary"));
         test.workingDir(project.getProjectDir());
-        test.getJavaLauncher().convention(getToolchainTool(project, JavaToolchainService::launcherFor));
+
+        ObjectFactory objectFactory = project.getObjects();
+        Provider<JavaToolchainSpec> toolchainOverrideSpec = project.provider(() -> getTestToolchainSpecOverride(test, objectFactory));
+        test.getJavaLauncher().convention(getToolchainTool(project, JavaToolchainService::launcherFor, toolchainOverrideSpec));
     }
 
-    private <T> Provider<T> getToolchainTool(Project project, BiFunction<JavaToolchainService, JavaToolchainSpec, Provider<T>> toolMapper) {
-        final JavaPluginExtension extension = project.getExtensions().getByType(JavaPluginExtension.class);
-        final JavaToolchainService service = project.getExtensions().getByType(JavaToolchainService.class);
-        return toolMapper.apply(service, extension.getToolchain());
+    @Nullable
+    private JavaToolchainSpec getTestToolchainSpecOverride(Test test, ObjectFactory objectFactory) {
+        String customExecutable = test.getExecutable();
+        if (customExecutable != null) {
+            return getJavaHomeExecutableToolchainSpec(objectFactory, customExecutable);
+        }
+        return null;
+    }
+
+    private static SpecificInstallationToolchainSpec getJavaHomeExecutableToolchainSpec(ObjectFactory objectFactory, String customExecutable) {
+        File executable = new File(customExecutable);
+        if (executable.exists()) {
+            // Relying on the layout of the toolchain distribution: <JAVA HOME>/bin/<executable>
+            File parentJavaHome = executable.getParentFile().getParentFile();
+            return new SpecificInstallationToolchainSpec(objectFactory, parentJavaHome);
+        } else {
+            throw new InvalidUserDataException("The configured executable does not exist (" + executable.getAbsolutePath() + ")");
+        }
+    }
+
+    private <T> Provider<T> getToolchainTool(
+        Project project,
+        BiFunction<JavaToolchainService, JavaToolchainSpec, Provider<T>> toolMapper,
+        Provider<JavaToolchainSpec> overrideSpec
+    ) {
+        JavaToolchainService service = project.getExtensions().getByType(JavaToolchainService.class);
+
+        JavaPluginExtension extension = project.getExtensions().getByType(JavaPluginExtension.class);
+        Provider<T> toolFromExtension = toolMapper.apply(service, extension.getToolchain());
+
+        Provider<T> toolFromOverride = overrideSpec.flatMap(it -> toolMapper.apply(service, it));
+        return toolFromOverride.orElse(toolFromExtension);
     }
 
     @Deprecated

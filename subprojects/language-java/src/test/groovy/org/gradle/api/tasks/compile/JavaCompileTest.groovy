@@ -35,46 +35,6 @@ class JavaCompileTest extends AbstractProjectBuilderSpec {
         project.extensions.add("javaToolchains", toolchainService)
     }
 
-    def "disallow using custom java_home with compiler present"() {
-        def javaCompile = project.tasks.create("compileJava", JavaCompile)
-
-        when:
-        javaCompile.javaCompiler.set(Mock(JavaCompiler))
-        javaCompile.options.forkOptions.javaHome = Mock(File)
-        javaCompile.createSpec()
-
-        then:
-        def e = thrown(IllegalStateException)
-        e.message == "Must not use `javaHome` property on `ForkOptions` together with `javaCompiler` property"
-    }
-
-    def "disallow using custom executable with compiler present"() {
-        def javaCompile = project.tasks.create("compileJava", JavaCompile)
-
-        when:
-        javaCompile.javaCompiler.set(Mock(JavaCompiler))
-        javaCompile.options.forkOptions.executable = "somejavac"
-        javaCompile.createSpec()
-
-        then:
-        def e = thrown(IllegalStateException)
-        e.message == "Must not use `executable` property on `ForkOptions` together with `javaCompiler` property"
-    }
-
-    def "fails if custom executable does not exist"() {
-        def javaCompile = project.tasks.create("compileJava", JavaCompile)
-        def invalidjavac = "invalidjavac"
-
-        when:
-        javaCompile.options.forkOptions.executable = invalidjavac
-        javaCompile.createSpec()
-
-        then:
-        def e = thrown(InvalidUserDataException)
-        e.message.contains("The configured executable does not exist")
-        e.message.contains(invalidjavac)
-    }
-
     def 'uses release property combined with toolchain compiler'() {
         def javaCompile = project.tasks.create('compileJava', JavaCompile)
         javaCompile.destinationDirectory.fileValue(new File('somewhere'))
