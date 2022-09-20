@@ -21,6 +21,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Transformer;
 import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.internal.provider.ProviderInternal;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.provider.ProviderFactory;
 import org.gradle.internal.deprecation.DocumentedFailure;
@@ -45,12 +46,15 @@ public class JavaToolchainQueryService {
     private final Provider<Boolean> downloadEnabled;
     private final Map<JavaToolchainSpecInternal.Key, JavaToolchain> matchingToolchains;
 
+    private final CurrentJvmToolchainSpec currentJvmToolchainSpec;
+
     @Inject
     public JavaToolchainQueryService(
         JavaInstallationRegistry registry,
         JavaToolchainFactory toolchainFactory,
         JavaToolchainProvisioningService provisioningService,
-        ProviderFactory factory
+        ProviderFactory factory,
+        ObjectFactory objectFactory
     ) {
         this.registry = registry;
         this.toolchainFactory = toolchainFactory;
@@ -58,6 +62,7 @@ public class JavaToolchainQueryService {
         this.detectEnabled = factory.gradleProperty(AutoDetectingInstallationSupplier.AUTO_DETECT).map(Boolean::parseBoolean);
         this.downloadEnabled = factory.gradleProperty(DefaultJavaToolchainProvisioningService.AUTO_DOWNLOAD).map(Boolean::parseBoolean);
         this.matchingToolchains = new ConcurrentHashMap<>();
+        this.currentJvmToolchainSpec = new CurrentJvmToolchainSpec(objectFactory);
     }
 
     <T> Provider<T> toolFor(
@@ -81,13 +86,8 @@ public class JavaToolchainQueryService {
                 .build();
         }
 
-        return new DefaultProvider<>(() -> {
-            if (!filterInternal.isConfigured()) {
-                return null;
-            }
-
-            return matchingToolchains.computeIfAbsent(filterInternal.toKey(), k -> query(filterInternal));
-        });
+        JavaToolchainSpecInternal resolvedSpec = filterInternal.isConfigured() ? filterInternal : currentJvmToolchainSpec;
+        return new DefaultProvider<>(() -> matchingToolchains.computeIfAbsent(resolvedSpec.toKey(), k -> query(resolvedSpec)));
     }
 
     private JavaToolchain query(JavaToolchainSpec filter) {
