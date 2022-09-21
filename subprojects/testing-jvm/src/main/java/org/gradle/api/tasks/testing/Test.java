@@ -193,7 +193,7 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
         forkOptions.setExecutable(null);
         modularity = getObjectFactory().newInstance(DefaultModularitySpec.class);
         javaLauncher = getObjectFactory().property(JavaLauncher.class)
-            .convention(getToolchainService().launcherFor(new CurrentJvmToolchainSpec(getObjectFactory())));
+            .convention(getJavaToolchainService().launcherFor(new CurrentJvmToolchainSpec(getObjectFactory())));
         testFramework = getObjectFactory().property(TestFramework.class).convention(new JUnitTestFramework(this, (DefaultTestFilter) getFilter(), true));
     }
 
@@ -203,7 +203,7 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
     }
 
     @Inject
-    protected JavaToolchainService getToolchainService() {
+    protected JavaToolchainService getJavaToolchainService() {
         throw new UnsupportedOperationException();
     }
 

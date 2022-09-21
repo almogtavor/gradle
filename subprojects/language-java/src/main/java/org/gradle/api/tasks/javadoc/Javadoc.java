@@ -125,7 +125,7 @@ public class Javadoc extends SourceTask {
     public Javadoc() {
         this.modularity = getObjectFactory().newInstance(DefaultModularitySpec.class);
         this.javadocTool = getObjectFactory().property(JavadocTool.class)
-            .convention(getToolchainService().javadocToolFor(new CurrentJvmToolchainSpec(getObjectFactory())));
+            .convention(getJavaToolchainService().javadocToolFor(new CurrentJvmToolchainSpec(getObjectFactory())));
     }
 
     @TaskAction
@@ -433,11 +433,6 @@ public class Javadoc extends SourceTask {
 
     @Inject
     protected ObjectFactory getObjectFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected JavaToolchainService getToolchainService() {
         throw new UnsupportedOperationException();
     }
 

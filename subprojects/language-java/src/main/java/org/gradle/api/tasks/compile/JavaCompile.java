@@ -102,7 +102,7 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
         compileOptions = getObjectFactory().newInstance(CompileOptions.class);
         modularity = getObjectFactory().newInstance(DefaultModularitySpec.class);
         javaCompiler = getObjectFactory().property(JavaCompiler.class)
-            .convention(getToolchainService().compilerFor(new CurrentJvmToolchainSpec(getObjectFactory())));
+            .convention(getJavaToolchainService().compilerFor(new CurrentJvmToolchainSpec(getObjectFactory())));
         javaCompiler.finalizeValueOnRead();
         compileOptions.getIncrementalAfterFailure().convention(true);
         CompilerForkUtils.doNotCacheIfForkingViaExecutable(compileOptions, getOutputs());
@@ -114,7 +114,7 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
     }
 
     @Inject
-    protected JavaToolchainService getToolchainService() {
+    protected JavaToolchainService getJavaToolchainService() {
         throw new UnsupportedOperationException();
     }
 
