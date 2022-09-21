@@ -16,7 +16,6 @@
 
 package org.gradle.api.tasks.compile
 
-import org.gradle.api.InvalidUserDataException
 import org.gradle.api.internal.file.TestFiles
 import org.gradle.api.internal.tasks.compile.DefaultJavaCompileSpec
 import org.gradle.internal.jvm.Jvm
