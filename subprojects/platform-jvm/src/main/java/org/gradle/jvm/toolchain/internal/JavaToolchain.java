@@ -20,6 +20,7 @@ import org.gradle.api.Describable;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.internal.file.FileFactory;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
 import org.gradle.internal.jvm.Jvm;
@@ -84,7 +85,7 @@ public class JavaToolchain implements Describable, JavaInstallationMetadata {
         return toolFactory.create(JavadocTool.class, this);
     }
 
-    @Internal
+    @Input
     public JavaLanguageVersion getLanguageVersion() {
         return javaVersion;
     }
