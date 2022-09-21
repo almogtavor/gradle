@@ -77,4 +77,10 @@ public interface JavaInstallationMetadata {
      */
     @Internal
     Directory getInstallationPath();
+
+    /**
+     * Returns true if this installation corresponds to the currently running JVM.
+     */
+    @Internal
+    boolean isCurrentJvm();
 }
