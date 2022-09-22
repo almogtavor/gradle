@@ -47,7 +47,6 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         """
     }
 
-    // TODO: mark the issue as fixed in PR
     @Issue("https://github.com/gradle/gradle/issues/21386")
     def "emits toolchain usages for a build #configureToolchain configured toolchain for '#task' task"() {
         JvmInstallationMetadata jdkMetadata
