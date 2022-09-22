@@ -22,7 +22,6 @@ import org.gradle.api.provider.ProviderFactory;
 import org.gradle.authentication.Authentication;
 import org.gradle.cache.FileLock;
 import org.gradle.platform.BuildPlatform;
-import org.gradle.internal.deprecation.DeprecationLogger;
 import org.gradle.internal.exceptions.Contextual;
 import org.gradle.internal.operations.BuildOperationContext;
 import org.gradle.internal.operations.BuildOperationDescriptor;
@@ -42,7 +41,6 @@ import javax.inject.Inject;
 import java.io.File;
 import java.net.URI;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -63,7 +61,6 @@ public class DefaultJavaToolchainProvisioningService implements JavaToolchainPro
     private static final Object PROVISIONING_PROCESS_LOCK = new Object();
 
     private final JavaToolchainResolverRegistryInternal toolchainResolverRegistry;
-    private final AdoptOpenJdkRemoteBinary openJdkBinary;
     private final SecureFileDownloader downloader;
     private final JdkCacheDirectory cacheDirProvider;
     private final Provider<Boolean> downloadEnabled;
@@ -73,7 +70,6 @@ public class DefaultJavaToolchainProvisioningService implements JavaToolchainPro
     @Inject
     public DefaultJavaToolchainProvisioningService(
             JavaToolchainResolverRegistry toolchainResolverRegistry,
-            AdoptOpenJdkRemoteBinary openJdkBinary,
             SecureFileDownloader downloader,
             JdkCacheDirectory cacheDirProvider,
             ProviderFactory factory,
@@ -81,7 +77,6 @@ public class DefaultJavaToolchainProvisioningService implements JavaToolchainPro
             BuildPlatform buildPlatform
     ) {
         this.toolchainResolverRegistry = (JavaToolchainResolverRegistryInternal) toolchainResolverRegistry;
-        this.openJdkBinary = openJdkBinary;
         this.downloader = downloader;
         this.cacheDirProvider = cacheDirProvider;
         this.downloadEnabled = factory.gradleProperty(AUTO_DOWNLOAD).map(Boolean::parseBoolean);
@@ -95,25 +90,11 @@ public class DefaultJavaToolchainProvisioningService implements JavaToolchainPro
         }
 
         List<? extends RealizedJavaToolchainRepository> repositories = toolchainResolverRegistry.requestedRepositories();
-
-        DefaultJavaToolchainRequest toolchainRequest = new DefaultJavaToolchainRequest(spec, buildPlatform);
-        if (repositories.isEmpty()) {
-            DeprecationLogger.deprecateBehaviour("Java toolchain auto-provisioning needed, but no java toolchain repositories declared by the build. Will rely on the built-in repository.")
-                    .withAdvice("In order to declare a repository for java toolchains, you must edit your settings script and add one via the toolchainManagement block.")
-                    .willBeRemovedInGradle8()
-                    .withUserManual("toolchains", "sec:provisioning")
-                    .nagUser();
-            Optional<URI> uri = openJdkBinary.resolve(toolchainRequest);
+        for (RealizedJavaToolchainRepository request : repositories) {
+            Optional<URI> uri = request.getResolver().resolve(new DefaultJavaToolchainRequest(spec, buildPlatform));
             if (uri.isPresent()) {
-                return Optional.of(provisionInstallation(spec, uri.get(), Collections.emptyList()));
-            }
-        } else {
-            for (RealizedJavaToolchainRepository request : repositories) {
-                  Optional<URI> uri = request.getResolver().resolve(toolchainRequest);
-                if (uri.isPresent()) {
-                    Collection<Authentication> authentications = request.getAuthentications(uri.get());
-                    return Optional.of(provisionInstallation(spec, uri.get(), authentications));
-                }
+                Collection<Authentication> authentications = request.getAuthentications(uri.get());
+                return Optional.of(provisionInstallation(spec, uri.get(), authentications));
             }
         }
 
