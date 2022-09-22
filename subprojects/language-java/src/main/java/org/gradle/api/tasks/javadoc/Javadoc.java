@@ -127,12 +127,12 @@ public class Javadoc extends SourceTask {
         this.modularity = objectFactory.newInstance(DefaultModularitySpec.class);
         JavaToolchainService javaToolchainService = getJavaToolchainService();
         // TODO: is there a better way to create the provider here?
-        Provider<JavadocTool> defaultJavaLauncher = new DefaultProvider<>(() ->
+        Provider<JavadocTool> defaultJavadocTool = new DefaultProvider<>(() ->
             JavadocExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
             .orElse(new CurrentJvmToolchainSpec(objectFactory))
             .flatMap(javaToolchainService::javadocToolFor);
         this.javadocTool = objectFactory.property(JavadocTool.class)
-            .convention(defaultJavaLauncher);
+            .convention(defaultJavadocTool);
     }
 
     @TaskAction

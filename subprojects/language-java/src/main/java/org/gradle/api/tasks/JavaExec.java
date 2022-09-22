@@ -21,16 +21,17 @@ import org.gradle.api.Action;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.internal.ConventionTask;
+import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.jvm.ModularitySpec;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.provider.ProviderFactory;
+import org.gradle.api.tasks.internal.JavaExecExecutableUtils;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.internal.jvm.DefaultModularitySpec;
-import org.gradle.internal.jvm.Jvm;
-import org.gradle.internal.jvm.inspection.JvmVersionDetector;
 import org.gradle.jvm.toolchain.JavaLauncher;
+import org.gradle.jvm.toolchain.JavaToolchainService;
+import org.gradle.jvm.toolchain.internal.CurrentJvmToolchainSpec;
 import org.gradle.process.CommandLineArgumentProvider;
 import org.gradle.process.ExecResult;
 import org.gradle.process.JavaDebugOptions;
@@ -128,7 +129,14 @@ public class JavaExec extends ConventionTask implements JavaExecSpec {
         javaExecSpec.getMainClass().convention(mainClass);
         javaExecSpec.getMainModule().convention(mainModule);
         javaExecSpec.getModularity().getInferModulePath().convention(modularity.getInferModulePath());
-        javaLauncher = objectFactory.property(JavaLauncher.class);
+
+        JavaToolchainService javaToolchainService = getJavaToolchainService();
+        // TODO: is there a better way to create the provider here?
+        Provider<JavaLauncher> defaultJavaLauncher = new DefaultProvider<>(() ->
+            JavaExecExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
+            .orElse(new CurrentJvmToolchainSpec(objectFactory))
+            .flatMap(javaToolchainService::launcherFor);
+        javaLauncher = objectFactory.property(JavaLauncher.class).convention(defaultJavaLauncher);
     }
 
     @Inject
@@ -142,7 +150,7 @@ public class JavaExec extends ConventionTask implements JavaExecSpec {
     }
 
     @Inject
-    protected ProviderFactory getProviderFactory() {
+    protected JavaToolchainService getJavaToolchainService() {
         throw new UnsupportedOperationException();
     }
 
@@ -151,7 +159,8 @@ public class JavaExec extends ConventionTask implements JavaExecSpec {
         setJvmArgs(getJvmArgs()); // convention mapping for 'jvmArgs'
         JavaExecAction javaExecAction = getExecActionFactory().newJavaExecAction();
         javaExecSpec.copyTo(javaExecAction);
-        javaExecAction.setExecutable(getEffectiveExecutable());
+        String effectiveExecutable = getJavaLauncher().get().getExecutablePath().toString();
+        javaExecAction.setExecutable(effectiveExecutable);
         execResult.set(javaExecAction.execute());
     }
 
@@ -506,13 +515,13 @@ public class JavaExec extends ConventionTask implements JavaExecSpec {
     }
 
     /**
-     * Returns the version of the Java executable specified by {@link #getExecutable()}.
+     * Returns the version of the Java executable specified by {@link #getJavaLauncher()}.
      *
      * @since 5.2
      */
     @Input
     public JavaVersion getJavaVersion() {
-        return getServices().get(JvmVersionDetector.class).getJavaVersion(getEffectiveExecutable());
+        return JavaVersion.toVersion(getJavaLauncher().get().getMetadata().getLanguageVersion().asInt());
     }
 
     /**
@@ -734,20 +743,7 @@ public class JavaExec extends ConventionTask implements JavaExecSpec {
      * @since 6.7
      */
     @Nested
-    @Optional
     public Property<JavaLauncher> getJavaLauncher() {
         return javaLauncher;
     }
-
-    private String getEffectiveExecutable() {
-        if (javaLauncher.isPresent()) {
-            return javaLauncher.get().getExecutablePath().toString();
-        }
-        final String executable = getExecutable();
-        if (executable != null) {
-            return executable;
-        }
-        return Jvm.current().getJavaExecutable().getAbsolutePath();
-    }
-
 }
