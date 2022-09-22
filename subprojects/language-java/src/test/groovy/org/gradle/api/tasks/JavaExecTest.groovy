@@ -20,12 +20,11 @@ import spock.lang.Specification
 
 class JavaExecTest extends Specification {
 
-    def 'javaLauncher is annotated with @Nested and @Optional'() {
+    def 'javaLauncher is annotated with @Nested'() {
         given:
         def launcherMethod = JavaExec.class.getMethod('getJavaLauncher', [] as Class[])
 
         expect:
         launcherMethod.isAnnotationPresent(Nested)
-        launcherMethod.isAnnotationPresent(Optional)
     }
 }
