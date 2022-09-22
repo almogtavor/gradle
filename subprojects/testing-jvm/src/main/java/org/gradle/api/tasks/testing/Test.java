@@ -24,13 +24,16 @@ import org.gradle.api.Action;
 import org.gradle.api.Incubating;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.NonNullApi;
+import org.gradle.api.Transformer;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileTree;
 import org.gradle.api.file.FileTreeElement;
 import org.gradle.api.internal.DocumentationRegistry;
 import org.gradle.api.internal.classpath.ModuleRegistry;
+import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.internal.tasks.testing.JvmTestExecutionSpec;
+import org.gradle.api.internal.tasks.testing.TestExecutableUtils;
 import org.gradle.api.internal.tasks.testing.TestExecuter;
 import org.gradle.api.internal.tasks.testing.TestFramework;
 import org.gradle.api.internal.tasks.testing.detection.DefaultTestExecuter;
@@ -44,6 +47,7 @@ import org.gradle.api.internal.tasks.testing.worker.TestWorker;
 import org.gradle.api.jvm.ModularitySpec;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Classpath;
@@ -52,7 +56,6 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
-import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.SkipWhenEmpty;
@@ -77,6 +80,7 @@ import org.gradle.internal.time.Clock;
 import org.gradle.internal.work.WorkerLeaseService;
 import org.gradle.jvm.toolchain.JavaLauncher;
 import org.gradle.jvm.toolchain.JavaToolchainService;
+import org.gradle.jvm.toolchain.JavaToolchainSpec;
 import org.gradle.jvm.toolchain.internal.CurrentJvmToolchainSpec;
 import org.gradle.process.CommandLineArgumentProvider;
 import org.gradle.process.JavaDebugOptions;
@@ -178,10 +182,11 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
     private TestExecuter<JvmTestExecutionSpec> testExecuter;
 
     public Test() {
+        ObjectFactory objectFactory = getObjectFactory();
         patternSet = getPatternSetFactory().create();
-        classpath = getObjectFactory().fileCollection();
+        classpath = objectFactory.fileCollection();
         // Create a stable instance to represent the classpath, that takes care of conventions and mutations applied to the property
-        stableClasspath = getObjectFactory().fileCollection();
+        stableClasspath = objectFactory.fileCollection();
         stableClasspath.from(new Callable<Object>() {
             @Override
             public Object call() {
@@ -191,10 +196,31 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
         forkOptions = getForkOptionsFactory().newDecoratedJavaForkOptions();
         forkOptions.setEnableAssertions(true);
         forkOptions.setExecutable(null);
-        modularity = getObjectFactory().newInstance(DefaultModularitySpec.class);
-        javaLauncher = getObjectFactory().property(JavaLauncher.class)
-            .convention(getJavaToolchainService().launcherFor(new CurrentJvmToolchainSpec(getObjectFactory())));
-        testFramework = getObjectFactory().property(TestFramework.class).convention(new JUnitTestFramework(this, (DefaultTestFilter) getFilter(), true));
+        modularity = objectFactory.newInstance(DefaultModularitySpec.class);
+        javaLauncher = objectFactory.property(JavaLauncher.class).convention(createDefaultJavaLauncher());
+        testFramework = objectFactory.property(TestFramework.class).convention(new JUnitTestFramework(this, (DefaultTestFilter) getFilter(), true));
+    }
+
+    private Provider<JavaLauncher> createDefaultJavaLauncher() {
+        final ObjectFactory objectFactory = getObjectFactory();
+        final JavaToolchainService javaToolchainService = getJavaToolchainService();
+        DefaultProvider<JavaToolchainSpec> executableOverrideToolchainSpec = new DefaultProvider<JavaToolchainSpec>(new Callable<JavaToolchainSpec>() {
+            @Override
+            public JavaToolchainSpec call() {
+                return TestExecutableUtils.getExecutableToolchainSpec(Test.this, objectFactory);
+            }
+        });
+
+        Provider<JavaToolchainSpec> defaultToolchainSpec =
+            executableOverrideToolchainSpec.orElse(new CurrentJvmToolchainSpec(objectFactory));
+
+        return defaultToolchainSpec
+            .flatMap(new Transformer<Provider<JavaLauncher>, JavaToolchainSpec>() {
+                @Override
+                public Provider<JavaLauncher> transform(JavaToolchainSpec spec) {
+                    return javaToolchainService.launcherFor(spec);
+                }
+            });
     }
 
     @Inject
@@ -1245,7 +1271,6 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
      * @since 6.7
      */
     @Nested
-    @Optional
     public Property<JavaLauncher> getJavaLauncher() {
         return javaLauncher;
     }

@@ -24,6 +24,7 @@ import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.internal.file.FileOperations;
 import org.gradle.api.internal.file.FileTreeInternal;
 import org.gradle.api.internal.file.temp.TemporaryFileProvider;
+import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.internal.tasks.compile.CleaningJavaCompiler;
 import org.gradle.api.internal.tasks.compile.CommandLineJavaCompileSpec;
 import org.gradle.api.internal.tasks.compile.CompilationSourceDirs;
@@ -32,6 +33,7 @@ import org.gradle.api.internal.tasks.compile.CompilerForkUtils;
 import org.gradle.api.internal.tasks.compile.DefaultJavaCompileSpec;
 import org.gradle.api.internal.tasks.compile.DefaultJavaCompileSpecFactory;
 import org.gradle.api.internal.tasks.compile.HasCompileOptions;
+import org.gradle.api.internal.tasks.compile.JavaCompileExecutableUtils;
 import org.gradle.api.internal.tasks.compile.JavaCompileSpec;
 import org.gradle.api.internal.tasks.compile.incremental.IncrementalCompilerFactory;
 import org.gradle.api.internal.tasks.compile.incremental.recomp.JavaRecompilationSpecProvider;
@@ -46,7 +48,6 @@ import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.Nested;
-import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
@@ -69,7 +70,6 @@ import org.gradle.work.Incremental;
 import org.gradle.work.InputChanges;
 import org.gradle.work.NormalizeLineEndings;
 
-import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.io.File;
 import java.util.List;
@@ -99,10 +99,16 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
     private final Property<JavaCompiler> javaCompiler;
 
     public JavaCompile() {
-        compileOptions = getObjectFactory().newInstance(CompileOptions.class);
-        modularity = getObjectFactory().newInstance(DefaultModularitySpec.class);
-        javaCompiler = getObjectFactory().property(JavaCompiler.class)
-            .convention(getJavaToolchainService().compilerFor(new CurrentJvmToolchainSpec(getObjectFactory())));
+        ObjectFactory objectFactory = getObjectFactory();
+        compileOptions = objectFactory.newInstance(CompileOptions.class);
+        modularity = objectFactory.newInstance(DefaultModularitySpec.class);
+        JavaToolchainService javaToolchainService = getJavaToolchainService();
+        // TODO: is there a better way to create the provider here?
+        Provider<JavaCompiler> defaultJavaCompiler = new DefaultProvider<>(() ->
+            JavaCompileExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
+            .orElse(new CurrentJvmToolchainSpec(objectFactory))
+            .flatMap(javaToolchainService::compilerFor);
+        javaCompiler = objectFactory.property(JavaCompiler.class).convention(defaultJavaCompiler);
         javaCompiler.finalizeValueOnRead();
         compileOptions.getIncrementalAfterFailure().convention(true);
         CompilerForkUtils.doNotCacheIfForkingViaExecutable(compileOptions, getOutputs());
@@ -134,7 +140,6 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
      * @since 6.7
      */
     @Nested
-    @Optional
     public Property<JavaCompiler> getJavaCompiler() {
         return javaCompiler;
     }
@@ -225,8 +230,7 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
 
     private <T extends CompileSpec> Compiler<T> createToolchainCompiler() {
         return spec -> {
-            final Provider<JavaCompiler> compilerProvider = getJavaCompiler();
-            final DefaultToolchainJavaCompiler compiler = (DefaultToolchainJavaCompiler) compilerProvider.get();
+            DefaultToolchainJavaCompiler compiler = (DefaultToolchainJavaCompiler) getJavaCompiler().get();
             return compiler.execute(spec);
         };
     }
@@ -287,54 +291,36 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
     }
 
     private DefaultJavaCompileSpec createBaseSpec() {
-        final ForkOptions forkOptions = compileOptions.getForkOptions();
-        if (javaCompiler.isPresent()) {
-            applyToolchain(forkOptions);
-        }
-        return new DefaultJavaCompileSpecFactory(compileOptions, getToolchain()).create();
-    }
-
-    private void applyToolchain(ForkOptions forkOptions) {
-        final JavaInstallationMetadata metadata = getToolchain();
+        ForkOptions forkOptions = compileOptions.getForkOptions();
+        JavaInstallationMetadata metadata = getJavaCompiler().get().getMetadata();
         forkOptions.setJavaHome(metadata.getInstallationPath().getAsFile());
-    }
-
-    @Nullable
-    private JavaInstallationMetadata getToolchain() {
-        return javaCompiler.map(JavaCompiler::getMetadata).getOrNull();
+        return new DefaultJavaCompileSpecFactory(compileOptions, metadata).create();
     }
 
     private void configureCompatibilityOptions(DefaultJavaCompileSpec spec) {
-        final JavaInstallationMetadata toolchain = getToolchain();
-        if (toolchain != null) {
-            if (compileOptions.getRelease().isPresent()) {
-                spec.setRelease(compileOptions.getRelease().get());
-            } else {
-                boolean isSourceOrTargetConfigured = false;
-                if (super.getSourceCompatibility() != null) {
-                    spec.setSourceCompatibility(getSourceCompatibility());
-                    isSourceOrTargetConfigured = true;
-                }
-                if (super.getTargetCompatibility() != null) {
-                    spec.setTargetCompatibility(getTargetCompatibility());
-                    isSourceOrTargetConfigured = true;
-                }
-                if (!isSourceOrTargetConfigured) {
-                    JavaLanguageVersion languageVersion = toolchain.getLanguageVersion();
-                    if (languageVersion.canCompileOrRun(10)) {
-                        spec.setRelease(languageVersion.asInt());
-                    } else {
-                        String version = languageVersion.toString();
-                        spec.setSourceCompatibility(version);
-                        spec.setTargetCompatibility(version);
-                    }
-                }
-            }
-        } else if (compileOptions.getRelease().isPresent()) {
+        JavaInstallationMetadata metadata = getJavaCompiler().get().getMetadata();
+        if (compileOptions.getRelease().isPresent()) {
             spec.setRelease(compileOptions.getRelease().get());
         } else {
-            spec.setTargetCompatibility(getTargetCompatibility());
-            spec.setSourceCompatibility(getSourceCompatibility());
+            boolean isSourceOrTargetConfigured = false;
+            if (super.getSourceCompatibility() != null) {
+                spec.setSourceCompatibility(getSourceCompatibility());
+                isSourceOrTargetConfigured = true;
+            }
+            if (super.getTargetCompatibility() != null) {
+                spec.setTargetCompatibility(getTargetCompatibility());
+                isSourceOrTargetConfigured = true;
+            }
+            if (!isSourceOrTargetConfigured) {
+                JavaLanguageVersion languageVersion = metadata.getLanguageVersion();
+                if (languageVersion.canCompileOrRun(10)) {
+                    spec.setRelease(languageVersion.asInt());
+                } else {
+                    String version = languageVersion.toString();
+                    spec.setSourceCompatibility(version);
+                    spec.setTargetCompatibility(version);
+                }
+            }
         }
         spec.setCompileOptions(compileOptions);
     }
