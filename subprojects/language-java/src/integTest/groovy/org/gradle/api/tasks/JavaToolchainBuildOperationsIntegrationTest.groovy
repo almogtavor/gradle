@@ -264,12 +264,13 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         assertToolchainUsages(events2, jdkMetadata2, "JavaLauncher")
     }
 
-    def "emits toolchain usages for compilation that configures java home via fork options"() {
+    def "emits toolchain usages for compilation that configures #option via fork options"() {
         JvmInstallationMetadata jdkMetadata = getJvmInstallationMetadata(differentJdk)
+        def path = TextUtil.normaliseFileSeparators(jdkMetadata.javaHome.toString() + appendPath)
 
         buildFile << """
             compileJava {
-                options.forkOptions.javaHome = file("${TextUtil.normaliseFileSeparators(jdkMetadata.javaHome.toString())}")
+                ${configure.replace("<path>", path)}
             }
         """
 
@@ -292,6 +293,11 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         then:
         skipped(task)
         assertToolchainUsages(events, jdkMetadata, "JavaCompiler")
+
+        where:
+        option       | configure                                       | appendPath
+        "java home"  | 'options.forkOptions.javaHome = file("<path>")' | ''
+        "executable" | 'options.forkOptions.executable = "<path>"'     | '/bin/java' // TODO: why changing this to `/bin/javac` fails the build?
     }
 
     def "emits toolchain usages for compilation that configures java home overriding toolchain from java extension"() {
