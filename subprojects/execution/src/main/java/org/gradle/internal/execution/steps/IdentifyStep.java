@@ -70,7 +70,12 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
 
                 Identity identity = work.identify(identityInputProperties, identityInputFileProperties);
                 String identityUniqueId = identity.getUniqueId();
-                operationContext.setResult((Operation.Result) () -> identityUniqueId);
+                operationContext.setResult(new Operation.Result() {
+                    @Override
+                    public String getIdentityUniqueId() {
+                        return identityUniqueId;
+                    }
+                });
                 return new IdentityContext() {
                     @Override
                     public Optional<String> getNonIncrementalReason() {
@@ -101,7 +106,12 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
             },
             BuildOperationDescriptor
                 .displayName("Identify " + work.getClass().getSimpleName() + " " + work.getDisplayName())
-                .details((Operation.Details) () -> workClassName)
+                .details(new Operation.Details() {
+                    @Override
+                    public String getWorkClassName() {
+                        return workClassName;
+                    }
+                })
         );
     }
 
