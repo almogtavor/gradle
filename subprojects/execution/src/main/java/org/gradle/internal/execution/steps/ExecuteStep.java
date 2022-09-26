@@ -52,6 +52,8 @@ public class ExecuteStep<C extends ChangingOutputsContext> implements Step<C, Re
 
     @Override
     public Result execute(UnitOfWork work, C context) {
+        String workClassName = work.getClass().getName();
+        String identityUniqueId = context.getIdentity().getUniqueId();
         return buildOperationExecutor.call(new CallableBuildOperation<Result>() {
             @Override
             public Result call(BuildOperationContext operationContext) {
@@ -63,8 +65,18 @@ public class ExecuteStep<C extends ChangingOutputsContext> implements Step<C, Re
             @Override
             public BuildOperationDescriptor.Builder description() {
                 return BuildOperationDescriptor
-                    .displayName("Executing " + work.getDisplayName())
-                    .details(Operation.Details.INSTANCE);
+                    .displayName("Executing " + work.getClass().getSimpleName() + " " + work.getDisplayName())
+                    .details(new Operation.Details() {
+                        @Override
+                        public String getWorkClassName() {
+                            return workClassName;
+                        }
+
+                        @Override
+                        public String getIdentityUniqueId() {
+                            return identityUniqueId;
+                        }
+                    });
             }
         });
     }
@@ -121,8 +133,8 @@ public class ExecuteStep<C extends ChangingOutputsContext> implements Step<C, Re
      */
     public interface Operation extends BuildOperationType<Operation.Details, Operation.Result> {
         interface Details {
-            Operation.Details INSTANCE = new Operation.Details() {
-            };
+            String getWorkClassName();
+            String getIdentityUniqueId();
         }
 
         interface Result {
