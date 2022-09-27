@@ -32,7 +32,7 @@ public class DefaultMultipleCandidateResult<T> implements MultipleCandidatesResu
     private Set<T> multipleMatches;
 
     public DefaultMultipleCandidateResult(@Nullable T consumerValue, Set<T> candidateValues) {
-        assert candidateValues.size() > 1;
+        assert candidateValues.size() > 1 || (candidateValues.size() == 1 && consumerValue == null);
         for (T candidateValue : candidateValues) {
             assert candidateValue != null;
         }
