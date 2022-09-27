@@ -52,7 +52,7 @@ public class ExecuteStep<C extends ChangingOutputsContext> implements Step<C, Re
 
     @Override
     public Result execute(UnitOfWork work, C context) {
-        Class<? extends UnitOfWork> workType = work.getClass();
+        String workClassName = work.getClass().getName();
         String identityUniqueId = context.getIdentity().getUniqueId();
         return buildOperationExecutor.call(new CallableBuildOperation<Result>() {
             @Override
@@ -68,8 +68,8 @@ public class ExecuteStep<C extends ChangingOutputsContext> implements Step<C, Re
                     .displayName("Executing " + work.getDisplayName())
                     .details(new Operation.Details() {
                         @Override
-                        public Class<?> getWorkType() {
-                            return workType;
+                        public String getWorkType() {
+                            return workClassName;
                         }
 
                         @Override
@@ -133,7 +133,7 @@ public class ExecuteStep<C extends ChangingOutputsContext> implements Step<C, Re
      */
     public interface Operation extends BuildOperationType<Operation.Details, Operation.Result> {
         interface Details {
-            Class<?> getWorkType();
+            String getWorkType();
             String getIdentity();
         }
 

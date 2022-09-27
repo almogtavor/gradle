@@ -56,7 +56,7 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
 
     @Nonnull
     private IdentityContext executeInternal(UnitOfWork work, C context) {
-        Class<? extends UnitOfWork> workType = work.getClass();
+        String workClassName = work.getClass().getName();
         return operation(operationContext -> {
                 IdentityContext identityContext = createIdentityContext(work, context);
                 String identityUniqueId = identityContext.getIdentity().getUniqueId();
@@ -72,8 +72,8 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
                 .displayName("Identify " + work.getDisplayName())
                 .details(new Operation.Details() {
                     @Override
-                    public Class<?> getWorkType() {
-                        return workType;
+                    public String getWorkType() {
+                        return workClassName;
                     }
                 })
         );
@@ -120,12 +120,9 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
         };
     }
 
-    /*
-     * This operation is only used here temporarily. Should be replaced with a more stable operation in the long term.
-     */
     public interface Operation extends BuildOperationType<Operation.Details, Operation.Result> {
         interface Details {
-            Class<?> getWorkType();
+            String getWorkType();
         }
 
         interface Result {
