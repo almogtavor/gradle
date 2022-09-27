@@ -46,73 +46,78 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
 
     @Override
     public R execute(UnitOfWork work, C context) {
-        return delegate.execute(work, createIdentityContext(work, context));
+        return delegate.execute(work, executeInternal(work, context));
     }
 
     @Override
     public <T> Deferrable<Try<T>> executeDeferred(UnitOfWork work, C context, Cache<Identity, Try<T>> cache) {
-        return delegate.executeDeferred(work, createIdentityContext(work, context), cache);
+        return delegate.executeDeferred(work, executeInternal(work, context), cache);
     }
 
     @Nonnull
-    private IdentityContext createIdentityContext(UnitOfWork work, C context) {
-        String workClassName = work.getClass().getName();
+    private IdentityContext executeInternal(UnitOfWork work, C context) {
+        Class<? extends UnitOfWork> workType = work.getClass();
         return operation(operationContext -> {
-                InputFingerprinter.Result inputs = work.getInputFingerprinter().fingerprintInputProperties(
-                    ImmutableSortedMap.of(),
-                    ImmutableSortedMap.of(),
-                    ImmutableSortedMap.of(),
-                    ImmutableSortedMap.of(),
-                    work::visitIdentityInputs
-                );
-                ImmutableSortedMap<String, ValueSnapshot> identityInputProperties = inputs.getValueSnapshots();
-                ImmutableSortedMap<String, CurrentFileCollectionFingerprint> identityInputFileProperties = inputs.getFileFingerprints();
-
-                Identity identity = work.identify(identityInputProperties, identityInputFileProperties);
-                String identityUniqueId = identity.getUniqueId();
+                IdentityContext identityContext = createIdentityContext(work, context);
+                String identityUniqueId = identityContext.getIdentity().getUniqueId();
                 operationContext.setResult(new Operation.Result() {
                     @Override
-                    public String getIdentityUniqueId() {
+                    public String getIdentity() {
                         return identityUniqueId;
                     }
                 });
-                return new IdentityContext() {
-                    @Override
-                    public Optional<String> getNonIncrementalReason() {
-                        return context.getNonIncrementalReason();
-                    }
-
-                    @Override
-                    public WorkValidationContext getValidationContext() {
-                        return context.getValidationContext();
-                    }
-
-                    @Override
-                    public ImmutableSortedMap<String, ValueSnapshot> getInputProperties() {
-                        return identityInputProperties;
-                    }
-
-                    @Override
-                    public ImmutableSortedMap<String, CurrentFileCollectionFingerprint> getInputFileProperties() {
-                        return identityInputFileProperties;
-                    }
-
-                    @Override
-                    public Identity getIdentity() {
-                        return identity;
-                    }
-                };
-
+                return identityContext;
             },
             BuildOperationDescriptor
                 .displayName("Identify " + work.getDisplayName())
                 .details(new Operation.Details() {
                     @Override
-                    public String getWorkClassName() {
-                        return workClassName;
+                    public Class<?> getWorkType() {
+                        return workType;
                     }
                 })
         );
+    }
+
+    @Nonnull
+    private IdentityContext createIdentityContext(UnitOfWork work, C context) {
+        InputFingerprinter.Result inputs = work.getInputFingerprinter().fingerprintInputProperties(
+            ImmutableSortedMap.of(),
+            ImmutableSortedMap.of(),
+            ImmutableSortedMap.of(),
+            ImmutableSortedMap.of(),
+            work::visitIdentityInputs
+        );
+        ImmutableSortedMap<String, ValueSnapshot> identityInputProperties = inputs.getValueSnapshots();
+        ImmutableSortedMap<String, CurrentFileCollectionFingerprint> identityInputFileProperties = inputs.getFileFingerprints();
+
+        Identity identity = work.identify(identityInputProperties, identityInputFileProperties);
+        return new IdentityContext() {
+            @Override
+            public Optional<String> getNonIncrementalReason() {
+                return context.getNonIncrementalReason();
+            }
+
+            @Override
+            public WorkValidationContext getValidationContext() {
+                return context.getValidationContext();
+            }
+
+            @Override
+            public ImmutableSortedMap<String, ValueSnapshot> getInputProperties() {
+                return identityInputProperties;
+            }
+
+            @Override
+            public ImmutableSortedMap<String, CurrentFileCollectionFingerprint> getInputFileProperties() {
+                return identityInputFileProperties;
+            }
+
+            @Override
+            public Identity getIdentity() {
+                return identity;
+            }
+        };
     }
 
     /*
@@ -120,11 +125,11 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
      */
     public interface Operation extends BuildOperationType<Operation.Details, Operation.Result> {
         interface Details {
-            String getWorkClassName();
+            Class<?> getWorkType();
         }
 
         interface Result {
-            String getIdentityUniqueId();
+            String getIdentity();
         }
     }
 }
