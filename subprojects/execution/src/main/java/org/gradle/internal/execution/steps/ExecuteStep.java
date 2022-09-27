@@ -65,7 +65,7 @@ public class ExecuteStep<C extends ChangingOutputsContext> implements Step<C, Re
             @Override
             public BuildOperationDescriptor.Builder description() {
                 return BuildOperationDescriptor
-                    .displayName("Executing " + work.getClass().getSimpleName() + " " + work.getDisplayName())
+                    .displayName("Executing " + work.getDisplayName())
                     .details(new Operation.Details() {
                         @Override
                         public String getWorkClassName() {

@@ -105,7 +105,7 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
 
             },
             BuildOperationDescriptor
-                .displayName("Identify " + work.getClass().getSimpleName() + " " + work.getDisplayName())
+                .displayName("Identify " + work.getDisplayName())
                 .details(new Operation.Details() {
                     @Override
                     public String getWorkClassName() {
