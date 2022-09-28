@@ -86,19 +86,17 @@ public class JavaToolchainQueryService {
         }
 
         JavaToolchainSpecInternal resolvedSpec = filterInternal.isConfigured() ? filterInternal : currentJvmToolchainSpec;
-        return new DefaultProvider<>(() -> {
-            if (!filterInternal.isConfigured()) {
-                return null;
-            }
+        return new DefaultProvider<>(() -> resolveToolchain(resolvedSpec));
+    }
 
-            synchronized (matchingToolchains) {
-                if (matchingToolchains.containsKey(filterInternal.toKey())) {
-                    return handleMatchingToolchainCached(filterInternal);
-                } else {
-                    return handleMatchingToolchainUnknown(filterInternal);
-                }
+    private JavaToolchain resolveToolchain(JavaToolchainSpecInternal filterInternal) throws Exception {
+        synchronized (matchingToolchains) {
+            if (matchingToolchains.containsKey(filterInternal.toKey())) {
+                return handleMatchingToolchainCached(filterInternal);
+            } else {
+                return handleMatchingToolchainUnknown(filterInternal);
             }
-        });
+        }
     }
 
     private JavaToolchain handleMatchingToolchainCached(JavaToolchainSpecInternal filterInternal) throws Exception {
