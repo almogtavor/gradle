@@ -59,7 +59,6 @@ import org.gradle.internal.deprecation.DeprecatableConfiguration;
 import org.gradle.jvm.toolchain.JavaToolchainService;
 import org.gradle.jvm.toolchain.JavaToolchainSpec;
 import org.gradle.jvm.toolchain.internal.DefaultToolchainSpec;
-import org.gradle.jvm.toolchain.internal.JavaToolchainQueryService;
 import org.gradle.jvm.toolchain.internal.JavaToolchainSpecInternal;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.language.jvm.tasks.ProcessResources;
@@ -376,11 +375,4 @@ public class JavaBasePlugin implements Plugin<Project> {
         return toolchainOverride.orElse(extension.getToolchain())
             .flatMap(spec -> toolMapper.apply(service, spec));
     }
-
-    @Deprecated
-    @Inject
-    protected JavaToolchainQueryService getJavaToolchainQueryService() {
-        throw new UnsupportedOperationException();
-    }
-
 }

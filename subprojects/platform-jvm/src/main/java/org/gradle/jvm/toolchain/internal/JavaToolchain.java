@@ -38,6 +38,10 @@ import java.nio.file.Path;
 
 public class JavaToolchain implements Describable, JavaInstallationMetadata {
 
+    static JavaLanguageVersion getJavaLanguageVersion(JvmInstallationMetadata metadata) {
+        return JavaLanguageVersion.of(metadata.getLanguageVersion().getMajorVersion());
+    }
+
     private final JavaCompilerFactory compilerFactory;
     private final ToolchainToolFactory toolFactory;
     private final Directory javaHome;
@@ -56,7 +60,7 @@ public class JavaToolchain implements Describable, JavaInstallationMetadata {
         BuildOperationProgressEventEmitter eventEmitter
     ) {
         this.javaHome = fileFactory.dir(computeEnclosingJavaHome(metadata.getJavaHome()).toFile());
-        this.javaVersion = JavaLanguageVersion.of(metadata.getLanguageVersion().getMajorVersion());
+        this.javaVersion = getJavaLanguageVersion(metadata);
         this.compilerFactory = compilerFactory;
         this.toolFactory = toolFactory;
         this.toolchainVersion = VersionNumber.withPatchNumber().parse(metadata.getJavaVersion());
