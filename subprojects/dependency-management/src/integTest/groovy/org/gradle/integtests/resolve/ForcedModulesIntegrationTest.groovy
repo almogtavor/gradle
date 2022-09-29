@@ -16,6 +16,7 @@
 package org.gradle.integtests.resolve
 
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+import org.gradle.integtests.fixtures.ToBeFixedForConfigurationCache
 import org.gradle.integtests.fixtures.resolve.ResolveTestFixture
 import spock.lang.Issue
 
@@ -42,8 +43,9 @@ configurations.all {
 }
 
 task checkDeps {
+    def files = configurations.compileClasspath
     doLast {
-        assert configurations.compileClasspath*.name == ['foo-1.4.4.jar']
+        assert files*.name == ['foo-1.4.4.jar']
     }
 }
 """
@@ -71,8 +73,9 @@ configurations.all {
 }
 
 task checkDeps {
+    def files = configurations.compileClasspath
     doLast {
-        assert configurations.compileClasspath*.name == ['foo-1.3.3.jar', 'bar-1.0.jar']
+        assert files*.name == ['foo-1.3.3.jar', 'bar-1.0.jar']
     }
 }
 """
@@ -128,6 +131,7 @@ allprojects {
         run("api:dependencies", "tool:dependencies")
     }
 
+    @ToBeFixedForConfigurationCache(because = "uses configurations container from task action")
     void "can force arbitrary version of a module and avoid conflict"() {
         mavenRepo.module("org", "foo", '1.3.3').publish()
         mavenRepo.module("org", "foobar", '1.3.3').publish()
@@ -226,8 +230,9 @@ project(':tool') {
 	    }
 	}
     task checkDeps {
+        def files = configurations.runtimeClasspath
         doLast {
-            assert configurations.runtimeClasspath*.name == ['api.jar', 'impl.jar', 'foo-1.3.3.jar']
+            assert files*.name == ['api.jar', 'impl.jar', 'foo-1.3.3.jar']
         }
     }
 }
@@ -298,8 +303,9 @@ dependencies {
 }
 
 task checkDeps {
+    def files = configurations.compileClasspath
     doLast {
-        assert configurations.compileClasspath*.name == ['foo-1.3.3.jar']
+        assert files*.name == ['foo-1.3.3.jar']
     }
 }
 """
@@ -326,8 +332,9 @@ configurations.all {
 }
 
 task checkDeps {
+    def files = configurations.compileClasspath
     doLast {
-        assert configurations.compileClasspath*.name == ['foo-1.3.3.jar']
+        assert files*.name == ['foo-1.3.3.jar']
     }
 }
 """
@@ -356,8 +363,9 @@ configurations.all {
 }
 
 task checkDeps {
+    def files = configurations.compileClasspath
     doLast {
-        assert configurations.compileClasspath*.name == ['foo-1.9.jar']
+        assert files*.name == ['foo-1.9.jar']
     }
 }
 """
@@ -440,8 +448,9 @@ dependencies {
 }
 
 task checkDeps {
+    def files = configurations.runtimeClasspath
     doLast {
-        assert configurations.runtimeClasspath*.name.contains('foo-1.3.3.jar')
+        assert files*.name.contains('foo-1.3.3.jar')
     }
 }
 """

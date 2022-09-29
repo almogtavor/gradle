@@ -39,7 +39,7 @@ class ConfigurationCacheBuildOperationsIntegrationTest extends AbstractConfigura
         operations.all(ConfigurationCacheStoreBuildOperationType).empty
     }
 
-    def "emits single load/store build operations of each type per build-tree when configuration cache is used - included build dependency"() {
+    def "emits load and store build operations of each type per build-tree when configuration cache is used - included build dependency"() {
         given:
         withLibBuild()
         withAppBuild()
@@ -49,8 +49,14 @@ class ConfigurationCacheBuildOperationsIntegrationTest extends AbstractConfigura
         configurationCacheRun 'assemble'
 
         then:
-        operations.all(ConfigurationCacheLoadBuildOperationType).empty
         with(operations.all(ConfigurationCacheStoreBuildOperationType)) {
+            size() == 1
+            with(get(0)) {
+                details == [:]
+                it.result == [:]
+            }
+        }
+        with(operations.all(ConfigurationCacheLoadBuildOperationType)) {
             size() == 1
             with(get(0)) {
                 details == [:]
@@ -73,7 +79,7 @@ class ConfigurationCacheBuildOperationsIntegrationTest extends AbstractConfigura
         operations.all(ConfigurationCacheStoreBuildOperationType).empty
     }
 
-    def "emits single load/store build operations of each type per build-tree when configuration cache is used - included build logic"() {
+    def "emits load and store build operations of each type per build-tree when configuration cache is used - included build logic"() {
         given:
         withLibBuild(true)
         file('settings.gradle') << """
@@ -91,7 +97,13 @@ class ConfigurationCacheBuildOperationsIntegrationTest extends AbstractConfigura
 
         then:
         outputContains('In script plugin')
-        operations.all(ConfigurationCacheLoadBuildOperationType).empty
+        with(operations.all(ConfigurationCacheLoadBuildOperationType)) {
+            size() == 1
+            with(get(0)) {
+                details == [:]
+                it.result == [:]
+            }
+        }
         with(operations.all(ConfigurationCacheStoreBuildOperationType)) {
             size() == 1
             with(get(0)) {

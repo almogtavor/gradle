@@ -146,6 +146,7 @@ class IsolatedProjectsToolingApiPhasedBuildActionIntegrationTest extends Abstrac
             buildModelCreated()
             modelsCreated(":")
             modelsCreated(":a")
+            loadsOnStore = true
         }
         outputContains("creating model for root project 'root'")
         outputContains("creating model for project ':a'")
@@ -209,6 +210,7 @@ class IsolatedProjectsToolingApiPhasedBuildActionIntegrationTest extends Abstrac
             buildModelCreated()
             modelsCreated(":")
             modelsCreated(":a")
+            loadsOnStore = true
         }
         outputContains("creating model for root project 'root'")
         outputContains("creating model for project ':a'")

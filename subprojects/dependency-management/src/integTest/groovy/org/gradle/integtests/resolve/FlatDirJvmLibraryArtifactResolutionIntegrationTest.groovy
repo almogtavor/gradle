@@ -51,6 +51,7 @@ repositories {
         file("sources/some-artifact-1.0-sources.jar").assertHasChangedSince(snapshot)
     }
 
+    @ToBeFixedForConfigurationCache(because = "uses artifact query API")
     def "resolves artifacts of non-existing component"() {
         def location1 = file("repo/some-artifact-1.0.jar").toURL()
         def location2 = file("repo/some-artifact.jar").toURL()
@@ -65,6 +66,7 @@ Searched in the following locations:
   - ${location2}""")
     }
 
+    @ToBeFixedForConfigurationCache(because = "uses artifact query API")
     def "resolve missing source and javadoc artifacts"() {
         file("repo/some-artifact-1.0.jar").createFile()
 
@@ -74,6 +76,7 @@ Searched in the following locations:
         succeeds("verify")
     }
 
+    @ToBeFixedForConfigurationCache(because = "uses artifact query API")
     def "resolve partially missing artifacts"() {
         file("repo/some-artifact-1.0.jar").createFile()
         file("repo/some-artifact-1.0-sources.jar").createFile()
@@ -85,6 +88,7 @@ Searched in the following locations:
         succeeds("verify")
     }
 
+    @ToBeFixedForConfigurationCache(because = "uses artifact query API")
     def "can only resolve component if main artifact exists"() {
         file("repo/some-artifact-1.0-sources.jar").createFile()
         file("repo/some-artifact-1.0-javadoc.jar").createFile()

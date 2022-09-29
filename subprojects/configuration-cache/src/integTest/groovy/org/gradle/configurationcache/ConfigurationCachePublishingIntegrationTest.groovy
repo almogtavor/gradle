@@ -237,7 +237,7 @@ class ConfigurationCachePublishingIntegrationTest extends AbstractConfigurationC
         server.resetExpectations()
 
         then:
-        configurationCache.assertStateStored()
+        configurationCache.assertStateStored(false)
         outputContains("Configuration cache entry discarded")
         failure.assertHasFailures(1)
         failure.assertHasDescription("Configuration cache problems found in this build")

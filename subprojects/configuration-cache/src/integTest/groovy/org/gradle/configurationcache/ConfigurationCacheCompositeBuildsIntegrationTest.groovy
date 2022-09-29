@@ -21,6 +21,7 @@ import org.gradle.internal.operations.trace.BuildOperationRecord
 import org.gradle.internal.os.OperatingSystem
 import org.gradle.internal.scan.config.fixtures.ApplyGradleEnterprisePluginFixture
 import org.gradle.test.fixtures.file.TestFile
+import org.gradle.util.internal.ToBeImplemented
 import spock.lang.Issue
 
 import java.util.regex.Pattern
@@ -50,9 +51,11 @@ class ConfigurationCacheCompositeBuildsIntegrationTest extends AbstractConfigura
         configurationCache.assertStateLoaded()
     }
 
+    // Currently, certain synthetic load build and configure build operations are being fired, meaning there are some duplicates when storing and loading in the same Gradle invocation
+    @ToBeImplemented
     def "hierarchy of build scan relevant build operations is preserved"() {
         given:
-        def expectedOperations = [
+        def expectedStoreOperations = [
             "Run build / Load build",
             "Run build / Load build / Evaluate settings",
             "Run build / Load build / Load build (:lib)",
@@ -65,7 +68,36 @@ class ConfigurationCacheCompositeBuildsIntegrationTest extends AbstractConfigura
             "Run build / Calculate build tree task graph / Calculate task graph",
             "Run build / Calculate build tree task graph / Calculate task graph (:lib)",
             "Run build / Calculate build tree task graph / Notify task graph whenReady listeners (:lib)",
-            "Run build / Calculate build tree task graph / Notify task graph whenReady listeners"
+            "Run build / Calculate build tree task graph / Notify task graph whenReady listeners",
+            "Run build / Store configuration cache state",
+            "Run build / Load configuration cache state",
+            "Run build / Load build",
+            "Run build / Load build / Evaluate settings",
+            "Run build / Load build / Load build (:lib)",
+            "Run build / Load build / Load build (:lib) / Evaluate settings (:lib)",
+            "Run build / Configure build / Load projects",
+            "Run build / Configure build / Configure build (:lib) / Load projects",
+            "Run build / Configure build / Configure build (:lib) / Configure project :lib",
+            "Run build / Configure build / Configure project :",
+            "Run build / Calculate build tree task graph",
+            "Run build / Calculate build tree task graph / Calculate task graph",
+            "Run build / Calculate build tree task graph / Calculate task graph (:lib)",
+        ]
+        def expectedLoadOperations = [
+            "Run build / Load configuration cache state",
+            "Run build / Load build",
+            "Run build / Load build / Evaluate settings",
+            "Run build / Load build / Load build (:lib)",
+            "Run build / Load build / Load build (:lib) / Evaluate settings (:lib)",
+            "Run build / Configure build / Load projects",
+            "Run build / Configure build / Configure build (:lib) / Load projects",
+            "Run build / Configure build / Configure build (:lib) / Configure project :lib",
+            "Run build / Configure build / Configure project :",
+            "Run build / Calculate build tree task graph",
+            "Run build / Calculate build tree task graph / Calculate task graph",
+            "Run build / Calculate build tree task graph / Calculate task graph (:lib)",
+            "Run build / Calculate build tree task graph / Notify task graph whenReady listeners (:lib)",
+            "Run build / Calculate build tree task graph / Notify task graph whenReady listeners",
         ]
         def configurationCache = newConfigurationCacheFixture()
         withLibBuild()
@@ -78,7 +110,7 @@ class ConfigurationCacheCompositeBuildsIntegrationTest extends AbstractConfigura
         then:
         configurationCache.assertStateStored()
         def buildScanOperationsOnStore = buildScanOperationsOf(configurationCache.operations)
-        buildScanOperationsOnStore == expectedOperations
+        buildScanOperationsOnStore == expectedStoreOperations
 
         when:
         inDirectory 'app'
@@ -87,7 +119,7 @@ class ConfigurationCacheCompositeBuildsIntegrationTest extends AbstractConfigura
         then:
         configurationCache.assertStateLoaded()
         def buildScanOperationsOnLoad = buildScanOperationsOf(configurationCache.operations)
-        buildScanOperationsOnLoad == buildScanOperationsOnStore
+        buildScanOperationsOnLoad == expectedLoadOperations
     }
 
     private static List<?> buildScanOperationsOf(BuildOperationTreeQueries operations) {
@@ -108,7 +140,7 @@ class ConfigurationCacheCompositeBuildsIntegrationTest extends AbstractConfigura
     private static List<BuildOperationRecord> scanRelevantOperationsIn(BuildOperationTreeQueries operations) {
         operations.all(
             Pattern.compile(
-                /(Load build|Evaluate settings|Load projects|Configure project|Calculate build tree task graph|Calculate task graph|Notify task graph whenReady listeners).*/
+                /(Load build|Evaluate settings|Load projects|Configure project|Calculate build tree task graph|Calculate task graph|Notify task graph whenReady listeners|Store configuration cache state|Load configuration cache state).*/
             )
         )
     }
@@ -246,6 +278,7 @@ class ConfigurationCacheCompositeBuildsIntegrationTest extends AbstractConfigura
 
         then:
         problems.assertResultHasProblems(result) {
+            withTotalProblemsCount(2)
             withUniqueProblems(expectedProblem)
             withProblemsWithStackTraceCount(0)
         }
