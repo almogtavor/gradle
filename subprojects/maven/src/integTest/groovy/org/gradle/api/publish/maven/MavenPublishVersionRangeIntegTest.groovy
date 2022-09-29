@@ -24,7 +24,9 @@ class MavenPublishVersionRangeIntegTest extends AbstractMavenPublishIntegTest {
     void "version range is mapped to maven syntax in published pom file"() {
         given:
         ('A'..'E').each {
-            javaLibrary(mavenRepo.module("group", "project${it}", "1.0")).withModuleMetadata().publish()
+            javaLibrary(mavenRepo.module("group", "project${it}", "1.0"))
+                .withModuleMetadata()
+                .publish()
         }
 
         settingsFile << "rootProject.name = 'publishTest' "
