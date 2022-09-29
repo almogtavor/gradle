@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 the original author or authors.
+ * Copyright 2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package org.gradle.internal.execution.steps
+package org.gradle.internal.buildtree;
 
-class ContextInsensitiveStepSpec extends StepSpec<Context> {
-    @Override
-    protected Context createContext() {
-        Stub(Context)
-    }
+import org.gradle.execution.EntryTaskSelector;
+import org.gradle.internal.build.ExecutionResult;
+import org.gradle.internal.service.scopes.Scopes;
+import org.gradle.internal.service.scopes.ServiceScope;
+
+import javax.annotation.Nullable;
+
+@ServiceScope(Scopes.BuildTree.class)
+public interface BuildTreeWorkController {
+    ExecutionResult<Void> scheduleAndRunRequestedTasks(@Nullable EntryTaskSelector taskSelector);
 }
