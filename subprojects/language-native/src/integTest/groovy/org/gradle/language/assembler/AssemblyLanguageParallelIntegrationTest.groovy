@@ -20,8 +20,10 @@ import org.gradle.integtests.fixtures.ToBeFixedForConfigurationCache
 import org.gradle.language.AbstractNativeSoftwareModelParallelIntegrationTest
 import org.gradle.nativeplatform.fixtures.app.AssemblerWithCHelloWorldApp
 import org.gradle.nativeplatform.fixtures.app.HelloWorldApp
+import spock.lang.Ignore
 
 
+@Ignore
 class AssemblyLanguageParallelIntegrationTest extends AbstractNativeSoftwareModelParallelIntegrationTest {
     HelloWorldApp app = new AssemblerWithCHelloWorldApp(toolChain)
 

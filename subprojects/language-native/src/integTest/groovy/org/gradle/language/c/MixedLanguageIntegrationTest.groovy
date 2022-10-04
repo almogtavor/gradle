@@ -23,7 +23,9 @@ import org.gradle.nativeplatform.fixtures.RequiresInstalledToolChain
 import org.gradle.nativeplatform.fixtures.ToolChainRequirement
 import org.gradle.nativeplatform.fixtures.app.HelloWorldApp
 import org.gradle.nativeplatform.fixtures.app.MixedLanguageHelloWorldApp
+import spock.lang.Ignore
 
+@Ignore
 @RequiresInstalledToolChain(ToolChainRequirement.SUPPORTS_32_AND_64)
 class MixedLanguageIntegrationTest extends AbstractNativeLanguageIntegrationTest {
 

@@ -29,11 +29,13 @@ import org.gradle.nativeplatform.fixtures.AbstractInstalledToolChainIntegrationS
 import org.gradle.nativeplatform.fixtures.RequiresInstalledToolChain
 import org.gradle.util.Requires
 import org.gradle.util.TestPrecondition
+import spock.lang.Ignore
 
 import static org.gradle.nativeplatform.fixtures.ToolChainRequirement.GCC_COMPATIBLE
 import static org.gradle.nativeplatform.fixtures.ToolChainRequirement.SUPPORTS_32
 import static org.gradle.nativeplatform.fixtures.ToolChainRequirement.VISUALCPP
 
+@Ignore
 class DuplicateBaseNamesIntegrationTest extends AbstractInstalledToolChainIntegrationSpec {
 
     @RequiresInstalledToolChain(SUPPORTS_32)

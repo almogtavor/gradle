@@ -24,11 +24,13 @@ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
 import org.gradle.util.Requires
 import org.gradle.util.TestPrecondition
 import org.junit.Rule
+import spock.lang.Ignore
 
 import static org.gradle.nativeplatform.fixtures.ToolChainRequirement.GCC_COMPATIBLE
 import static org.gradle.nativeplatform.fixtures.ToolChainRequirement.SUPPORTS_32_AND_64
 import static org.gradle.nativeplatform.fixtures.ToolChainRequirement.VISUALCPP
 
+@Ignore
 @Requires(TestPrecondition.CAN_INSTALL_EXECUTABLE)
 class NativeLanguageSamplesIntegrationTest extends AbstractInstalledToolChainIntegrationSpec {
     @Rule final TestNameTestDirectoryProvider testDirProvider = new TestNameTestDirectoryProvider(getClass())
