@@ -75,7 +75,7 @@ class TestTest extends AbstractProjectBuilderSpec {
 
         when:
         testTask.executable = invalidJava
-        testTask.javaVersion
+        testTask.createSpec()
 
         then:
         def e = thrown(AbstractProperty.PropertyQueryException)

@@ -16,6 +16,7 @@
 
 package org.gradle.api.tasks.javadoc;
 
+import com.google.common.annotations.VisibleForTesting;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import org.gradle.api.Action;
@@ -184,7 +185,8 @@ public class Javadoc extends SourceTask {
 
         options.setSourceNames(sourceNames());
 
-        executeExternalJavadoc(options);
+        JavadocSpec spec = createSpec(options);
+        getJavadocToolAdapter().execute(spec);
     }
 
     private boolean isModule() {
@@ -200,17 +202,22 @@ public class Javadoc extends SourceTask {
         return sourceNames;
     }
 
-    private void executeExternalJavadoc(StandardJavadocDocletOptions options) {
+    @VisibleForTesting
+    JavadocSpec createSpec(StandardJavadocDocletOptions options) {
         JavadocSpec spec = new JavadocSpec();
-        // Note, we do not set an executable on the spec from the executable field,
-        // because it is always projected from the javadocTool
         spec.setOptions(options);
         spec.setIgnoreFailures(!isFailOnError());
         spec.setWorkingDir(getProjectLayout().getProjectDirectory().getAsFile());
         spec.setOptionsFile(getOptionsFile());
 
-        JavadocToolAdapter javadocToolAdapter = (JavadocToolAdapter) getJavadocTool().get();
-        javadocToolAdapter.execute(spec);
+        JavadocToolAdapter javadocToolAdapter = getJavadocToolAdapter();
+        spec.setExecutable(javadocToolAdapter.getExecutablePath().toString());
+
+        return spec;
+    }
+
+    private JavadocToolAdapter getJavadocToolAdapter() {
+        return (JavadocToolAdapter) getJavadocTool().get();
     }
 
     @Inject
