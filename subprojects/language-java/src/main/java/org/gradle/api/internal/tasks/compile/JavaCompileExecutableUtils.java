@@ -18,6 +18,7 @@ package org.gradle.api.internal.tasks.compile;
 
 import org.gradle.api.InvalidUserDataException;
 import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.tasks.compile.ForkOptions;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.jvm.toolchain.JavaToolchainSpec;
 import org.gradle.jvm.toolchain.internal.SpecificInstallationToolchainSpec;
@@ -28,13 +29,14 @@ import java.io.File;
 public class JavaCompileExecutableUtils {
 
     @Nullable
-    public static JavaToolchainSpec getExecutableOverrideToolchainSpec(JavaCompile compileTask, ObjectFactory objectFactory) {
-        File customJavaHome = compileTask.getOptions().getForkOptions().getJavaHome();
+    public static JavaToolchainSpec getExecutableOverrideToolchainSpec(JavaCompile task, ObjectFactory objectFactory) {
+        ForkOptions forkOptions = task.getOptions().getForkOptions();
+        File customJavaHome = forkOptions.getJavaHome();
         if (customJavaHome != null) {
             return new SpecificInstallationToolchainSpec(objectFactory, customJavaHome);
         }
 
-        String customExecutable = compileTask.getOptions().getForkOptions().getExecutable();
+        String customExecutable = forkOptions.getExecutable();
         if (customExecutable != null) {
             File executable = new File(customExecutable);
             if (executable.exists()) {

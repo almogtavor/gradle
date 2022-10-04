@@ -28,8 +28,8 @@ import java.io.File;
 public class JavadocExecutableUtils {
 
     @Nullable
-    public static JavaToolchainSpec getExecutableOverrideToolchainSpec(Javadoc javadoc, ObjectFactory objectFactory) {
-        String customExecutable = javadoc.getExecutable();
+    public static JavaToolchainSpec getExecutableOverrideToolchainSpec(Javadoc task, ObjectFactory objectFactory) {
+        String customExecutable = task.getExecutable();
         if (customExecutable != null) {
             File executable = new File(customExecutable);
             if (executable.exists()) {

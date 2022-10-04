@@ -28,8 +28,8 @@ import java.io.File;
 public class TestExecutableUtils {
 
     @Nullable
-    public static JavaToolchainSpec getExecutableToolchainSpec(Test test, ObjectFactory objectFactory) {
-        String customExecutable = test.getExecutable();
+    public static JavaToolchainSpec getExecutableToolchainSpec(Test task, ObjectFactory objectFactory) {
+        String customExecutable = task.getExecutable();
         if (customExecutable != null) {
             File executable = new File(customExecutable);
             if (executable.exists()) {
