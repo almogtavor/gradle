@@ -53,7 +53,7 @@ public class BuildSrcUpdateFactory {
         BuildSrcBuildListenerFactory.Listener listener = listenerFactory.create();
         buildController.beforeBuild(gradle -> gradle.addListener(listener));
 
-        buildController.scheduleAndRunTasks();
+        buildController.scheduleAndRunTasks(listener);
 
         return listener.getRuntimeClasspath();
     }

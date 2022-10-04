@@ -165,4 +165,9 @@ public interface GradleDistribution {
      * Returns true if this version generates a build operation that wraps the execution phase
      */
     boolean isToolingApiHasExecutionPhaseBuildOperation();
+
+    /**
+     * Returns true if this version runs tests when building `buildSrc`
+     */
+    boolean isRunsBuildSrcTests();
 }
