@@ -326,6 +326,24 @@ public class NormalizingExcludeFactory extends DelegatingExcludeFactory {
         if (result.size() > 1) {
             // try simplify
             ExcludeSpec[] asArray = result.toArray(new ExcludeSpec[0]);
+            if (result.size() > 2) {
+                // Let's handle non composites first when we have more than two elements
+                Arrays.sort(asArray, (a, b) -> {
+                    if (a instanceof CompositeExclude) {
+                        if (b instanceof CompositeExclude) {
+                            return 0;
+                        } else {
+                            return 1;
+                        }
+                    } else {
+                        if (b instanceof CompositeExclude) {
+                            return -1;
+                        } else {
+                            return 0;
+                        }
+                    }
+                });
+            }
             boolean simplified = false;
             for (int i = 0; i < asArray.length; i++) {
                 ExcludeSpec left = asArray[i];
