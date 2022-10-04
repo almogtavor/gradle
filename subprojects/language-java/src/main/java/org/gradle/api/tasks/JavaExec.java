@@ -16,6 +16,7 @@
 
 package org.gradle.api.tasks;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.tools.ant.types.Commandline;
 import org.gradle.api.Action;
 import org.gradle.api.JavaVersion;
@@ -156,12 +157,18 @@ public class JavaExec extends ConventionTask implements JavaExecSpec {
 
     @TaskAction
     public void exec() {
+        JavaExecAction javaExecAction = createSpec();
+        execResult.set(javaExecAction.execute());
+    }
+
+    @VisibleForTesting
+    JavaExecAction createSpec() {
         setJvmArgs(getJvmArgs()); // convention mapping for 'jvmArgs'
         JavaExecAction javaExecAction = getExecActionFactory().newJavaExecAction();
         javaExecSpec.copyTo(javaExecAction);
         String effectiveExecutable = getJavaLauncher().get().getExecutablePath().toString();
         javaExecAction.setExecutable(effectiveExecutable);
-        execResult.set(javaExecAction.execute());
+        return javaExecAction;
     }
 
     /**

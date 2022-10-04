@@ -16,15 +16,49 @@
 
 package org.gradle.api.tasks
 
-import spock.lang.Specification
+import org.gradle.api.file.RegularFile
+import org.gradle.internal.jvm.Jvm
+import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.jvm.toolchain.JavaToolchainService
+import org.gradle.test.fixtures.AbstractProjectBuilderSpec
+import org.gradle.util.internal.TextUtil
 
-class JavaExecTest extends Specification {
+class JavaExecTest extends AbstractProjectBuilderSpec {
 
-    def 'javaLauncher is annotated with @Nested'() {
+    def setup() {
+        def toolchainService = Mock(JavaToolchainService)
+        project.extensions.add("javaToolchains", toolchainService)
+    }
+
+    def "uses current JVM toolchain launcher as convention"() {
+        def task = project.tasks.create('execJava', JavaExec)
+        def javaHome = Jvm.current().javaHome
+
+        when:
+        def spec = task.createSpec()
+        def actualLauncher = task.javaLauncher.get()
+
+        then:
+        spec.executable == TextUtil.normaliseFileSeparators(new File(javaHome, "/bin/java").absolutePath)
+        actualLauncher.metadata.installationPath.toString() == javaHome.toString()
+    }
+
+    def "uses toolchain launcher over custom executable"() {
+        def task = project.tasks.create('execJava', JavaExec)
+        def launcher = Mock(JavaLauncher)
+
+        def toolchainExecutable = Mock(RegularFile)
+        toolchainExecutable.toString() >> "/test/toolchain/bin/java"
+        launcher.executablePath >> toolchainExecutable
+
         given:
-        def launcherMethod = JavaExec.class.getMethod('getJavaLauncher', [] as Class[])
+        task.javaLauncher.set(launcher)
+        task.executable = "/test/custom/executable/java"
 
-        expect:
-        launcherMethod.isAnnotationPresent(Nested)
+        when:
+        def spec = task.createSpec()
+
+        then:
+        spec.executable == "/test/toolchain/bin/java"
     }
 }
