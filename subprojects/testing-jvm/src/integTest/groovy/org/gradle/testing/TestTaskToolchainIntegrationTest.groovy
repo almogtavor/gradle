@@ -17,14 +17,50 @@
 package org.gradle.testing
 
 import org.gradle.integtests.fixtures.AbstractIntegrationSpec
-import org.gradle.integtests.fixtures.AvailableJavaHomes
 import org.gradle.internal.jvm.Jvm
-import spock.lang.IgnoreIf
+import org.gradle.internal.jvm.inspection.JvmInstallationMetadata
+import org.gradle.test.fixtures.file.TestFile
+import org.gradle.util.internal.TextUtil
+
+import static org.gradle.integtests.fixtures.AvailableJavaHomes.getDifferentVersion
+import static org.gradle.integtests.fixtures.AvailableJavaHomes.getJvmInstallationMetadata
 
 class TestTaskToolchainIntegrationTest extends AbstractIntegrationSpec {
 
-    @IgnoreIf({ AvailableJavaHomes.differentJdk == null })
-    def "can manually set java launcher via  #type toolchain on java test task #jdk"() {
+    def "uses #what toolchain #when"() {
+        JvmInstallationMetadata jdkMetadataCurrent = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        // When at least one toolchain is used for configuration, expect the first toolchain to be the target.
+        // Otherwise, expect the current toolchain as a fallback
+        JvmInstallationMetadata targetJdk = jdkMetadataCurrent
+        def useJdk = {
+            if (targetJdk === jdkMetadataCurrent) {
+                targetJdk = jdkMetadata1
+                return jdkMetadata1
+            } else {
+                return jdkMetadata2
+            }
+        }
+
+        file("src/test/java/ToolchainTest.java") << """
+            import org.junit.*;
+
+            public class ToolchainTest {
+               @Test
+               public void test() {
+                  System.out.println("Tests running with " + System.getProperty("java.home"));
+                  Assert.assertEquals(1,1);
+               }
+            }
+        """
+
+        // Compile with the minimum version to make sure the runtime can execute the compiled class
+        def compileWithVersion = [jdkMetadataCurrent, jdkMetadata1, jdkMetadata2].collect {
+            it.languageVersion.majorVersion.toInteger()
+        }.min()
+
         buildFile << """
             apply plugin: "java"
 
@@ -36,79 +72,72 @@ class TestTaskToolchainIntegrationTest extends AbstractIntegrationSpec {
 
             tasks.withType(JavaCompile).configureEach {
                 javaCompiler = javaToolchains.compilerFor {
-                    languageVersion = JavaLanguageVersion.of(${jdk.javaVersion.majorVersion})
-                }
-            }
-            test {
-                javaLauncher = javaToolchains.launcherFor {
-                    languageVersion = JavaLanguageVersion.of(${jdk.javaVersion.majorVersion})
+                    languageVersion = JavaLanguageVersion.of(${compileWithVersion})
                 }
             }
         """
 
-        file('src/test/java/ToolchainTest.java') << testClass("ToolchainTest")
+        // Order of if's is important as it denotes toolchain priority
+        if (withTool) {
+            configureLauncher(useJdk())
+        }
+        if (withExecutable) {
+            configureExecutable(useJdk())
+        }
+        if (withJavaExtension) {
+            configureJavaExtension(useJdk())
+        }
 
         when:
-        result = executer
-            .withArgument("-Porg.gradle.java.installations.paths=" + jdk.javaHome.absolutePath)
-            .withArgument("--info")
-            .withTasks("test")
-            .run()
+        withInstallations(jdkMetadataCurrent, jdkMetadata1, jdkMetadata2).run(":test", "--info")
 
         then:
-        outputContains("Tests running with ${jdk.javaHome.absolutePath}")
-        noExceptionThrown()
+        executedAndNotSkipped(":test")
+        outputContains("Tests running with ${targetJdk.javaHome.toAbsolutePath()}")
 
         where:
-        type           | jdk
-        'differentJdk' | AvailableJavaHomes.differentJdk
-        'current'      | Jvm.current()
+        what             | when                                 | withTool | withExecutable | withJavaExtension
+        "current JVM"    | "when toolchains are not configured" | false    | false          | false
+        "java extension" | "when configured"                    | false    | false          | true
+        "executable"     | "when configured"                    | false    | true           | false
+        "assigned tool"  | "when configured"                    | true     | false          | false
+        "executable"     | "over java extension"                | false    | true           | true
+        "assigned tool"  | "over everything else"               | true     | true           | true
     }
 
-    @IgnoreIf({ AvailableJavaHomes.differentJdk == null })
-    def "Test task is configured using default toolchain"() {
-        def someJdk = AvailableJavaHomes.getDifferentVersion()
+    private TestFile configureJavaExtension(JvmInstallationMetadata jdk) {
         buildFile << """
-            apply plugin: "java"
-
-            ${mavenCentralRepository()}
-
-            dependencies {
-                testImplementation 'junit:junit:4.13'
-            }
-
             java {
                 toolchain {
-                    languageVersion = JavaLanguageVersion.of(${someJdk.javaVersion.majorVersion})
+                    languageVersion = JavaLanguageVersion.of(${jdk.languageVersion.majorVersion})
                 }
             }
         """
-
-        file('src/test/java/ToolchainTest.java') << testClass("ToolchainTest")
-
-        when:
-        result = executer
-            .withArguments("-Porg.gradle.java.installations.paths=" + someJdk.javaHome.absolutePath, "--info")
-            .withTasks("test")
-            .run()
-
-        then:
-        outputContains("Tests running with ${someJdk.javaHome.absolutePath}")
-        noExceptionThrown()
     }
 
-    private static String testClass(String className) {
-        return """
-            import org.junit.*;
-
-            public class $className {
-               @Test
-               public void test() {
-                  System.out.println("Tests running with " + System.getProperty("java.home"));
-                  Assert.assertEquals(1,1);
-               }
+    private TestFile configureExecutable(JvmInstallationMetadata jdk) {
+        buildFile << """
+            test {
+                executable = "${TextUtil.normaliseFileSeparators(jdk.javaHome.toString() + "/bin/java")}"
             }
-        """.stripIndent()
+        """
+    }
+
+    private TestFile configureLauncher(JvmInstallationMetadata jdk) {
+        buildFile << """
+            test {
+                javaLauncher = javaToolchains.launcherFor {
+                    languageVersion = JavaLanguageVersion.of(${jdk.languageVersion.majorVersion})
+                }
+            }
+        """
+    }
+
+    private withInstallations(JvmInstallationMetadata... jdkMetadata) {
+        def installationPaths = jdkMetadata.collect { it.javaHome.toAbsolutePath().toString() }.join(",")
+        executer
+            .withArgument("-Porg.gradle.java.installations.paths=" + installationPaths)
+        this
     }
 
 }

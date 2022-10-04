@@ -121,10 +121,10 @@ class JavaCompileTest extends AbstractProjectBuilderSpec {
 
     def "fails if custom executable does not exist"() {
         def javaCompile = project.tasks.create("compileJava", JavaCompile)
-        def invalidjavac = "invalidjavac"
+        def invalidJavac = "invalidjavac"
 
         when:
-        javaCompile.options.forkOptions.executable = invalidjavac
+        javaCompile.options.forkOptions.executable = invalidJavac
         javaCompile.createSpec()
 
         then:
@@ -132,7 +132,7 @@ class JavaCompileTest extends AbstractProjectBuilderSpec {
         e.message.contains("Failed to calculate the value of task ':compileJava' property 'javaCompiler'")
         def cause = e.cause
         cause.message.contains("The configured executable does not exist")
-        cause.message.contains(invalidjavac)
+        cause.message.contains(invalidJavac)
     }
 
     def 'uses release property combined with toolchain compiler'() {

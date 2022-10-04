@@ -16,20 +16,57 @@
 
 package org.gradle.api.tasks.testing
 
-import org.gradle.api.InvalidUserDataException
-import org.gradle.api.tasks.Nested
-import org.gradle.api.tasks.Optional
+
+import org.gradle.api.file.RegularFile
+import org.gradle.api.internal.file.TestFiles
+import org.gradle.api.internal.provider.AbstractProperty
+import org.gradle.internal.jvm.Jvm
+import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.test.fixtures.AbstractProjectBuilderSpec
+import org.gradle.util.internal.TextUtil
 
 class TestTest extends AbstractProjectBuilderSpec {
 
-    def 'javaLauncher is annotated with @Nested and @Optional'() {
-        given:
-        def launcherMethod = Test.class.getMethod('getJavaLauncher', [] as Class[])
+    def setup() {
+        def toolchainService = Mock(JavaToolchainService)
+        project.extensions.add("javaToolchains", toolchainService)
+    }
 
-        expect:
-        launcherMethod.isAnnotationPresent(Nested)
-        launcherMethod.isAnnotationPresent(Optional)
+    def "uses current JVM toolchain launcher as convention"() {
+        def task = project.tasks.create("test", Test)
+        task.testClassesDirs = TestFiles.fixed(new File("tmp"))
+        task.binaryResultsDirectory.fileValue(new File("out"))
+        def javaHome = Jvm.current().javaHome
+
+        when:
+        def spec = task.createSpec()
+        def actualLauncher = task.javaLauncher.get()
+
+        then:
+        spec.javaForkOptions.executable == TextUtil.normaliseFileSeparators(new File(javaHome, "/bin/java").absolutePath)
+        actualLauncher.metadata.installationPath.toString() == javaHome.toString()
+    }
+
+    def "uses toolchain launcher over custom executable"() {
+        def task = project.tasks.create("test", Test)
+        task.testClassesDirs = TestFiles.fixed(new File("tmp"))
+        task.binaryResultsDirectory.fileValue(new File("out"))
+        def launcher = Mock(JavaLauncher)
+
+        def toolchainExecutable = Mock(RegularFile)
+        toolchainExecutable.toString() >> "/test/toolchain/bin/java"
+        launcher.executablePath >> toolchainExecutable
+
+        given:
+        task.javaLauncher.set(launcher)
+        task.executable = "/test/custom/executable/java"
+
+        when:
+        def spec = task.createSpec()
+
+        then:
+        spec.javaForkOptions.executable == "/test/toolchain/bin/java"
     }
 
     def 'fails if custom executable does not exist'() {
@@ -41,8 +78,10 @@ class TestTest extends AbstractProjectBuilderSpec {
         testTask.javaVersion
 
         then:
-        def e = thrown(InvalidUserDataException)
-        e.message.contains("The configured executable does not exist")
-        e.message.contains(invalidJava)
+        def e = thrown(AbstractProperty.PropertyQueryException)
+        e.message.contains("Failed to query the value of task ':test' property 'javaLauncher'")
+        def cause = e.cause
+        cause.message.contains("The configured executable does not exist")
+        cause.message.contains(invalidJava)
     }
 }
