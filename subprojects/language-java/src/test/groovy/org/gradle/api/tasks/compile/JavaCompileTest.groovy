@@ -17,6 +17,7 @@
 package org.gradle.api.tasks.compile
 
 import org.gradle.api.internal.file.TestFiles
+import org.gradle.api.internal.provider.AbstractProperty
 import org.gradle.api.internal.tasks.compile.DefaultJavaCompileSpec
 import org.gradle.internal.jvm.Jvm
 import org.gradle.jvm.toolchain.JavaCompiler
@@ -32,6 +33,106 @@ class JavaCompileTest extends AbstractProjectBuilderSpec {
     def setup() {
         def toolchainService = Mock(JavaToolchainService)
         project.extensions.add("javaToolchains", toolchainService)
+    }
+
+    def "uses current JVM toolchain compiler as convention"() {
+        def javaCompile = project.tasks.create('compileJava', JavaCompile)
+        javaCompile.destinationDirectory.fileValue(new File('tmp'))
+        def javaHome = Jvm.current().javaHome
+
+        when:
+        def spec = javaCompile.createSpec()
+        def actualCompiler = javaCompile.javaCompiler.get()
+
+        then:
+        spec.compileOptions.forkOptions.javaHome == javaHome
+        spec.compileOptions.forkOptions.executable == null
+        actualCompiler.metadata.installationPath.toString() == javaHome.toString()
+    }
+
+    def "uses toolchain compiler over custom executable"() {
+        def javaCompile = project.tasks.create('compileJava', JavaCompile)
+        javaCompile.destinationDirectory.fileValue(new File('tmp'))
+        def javaHome = Jvm.current().javaHome
+        def metadata = Mock(JavaInstallationMetadata)
+        def compiler = Mock(JavaCompiler)
+
+        metadata.languageVersion >> JavaLanguageVersion.of(15)
+        metadata.installationPath >> TestFiles.fileFactory().dir(javaHome)
+        compiler.metadata >> metadata
+
+        given:
+        javaCompile.javaCompiler.set(compiler)
+        javaCompile.options.forkOptions.executable = "/custom/executable/path"
+
+        when:
+        def spec = javaCompile.createSpec()
+        def actualCompiler = javaCompile.javaCompiler.get()
+
+        then:
+        spec.compileOptions.forkOptions.javaHome == javaHome
+        spec.compileOptions.forkOptions.executable == null
+        actualCompiler.metadata.installationPath.toString() == javaHome.toString()
+    }
+
+    def "uses toolchain compiler over custom java_home"() {
+        def javaCompile = project.tasks.create('compileJava', JavaCompile)
+        javaCompile.destinationDirectory.fileValue(new File('tmp'))
+        def javaHome = Jvm.current().javaHome
+        def metadata = Mock(JavaInstallationMetadata)
+        def compiler = Mock(JavaCompiler)
+
+        metadata.languageVersion >> JavaLanguageVersion.of(15)
+        metadata.installationPath >> TestFiles.fileFactory().dir(javaHome)
+        compiler.metadata >> metadata
+
+        given:
+        javaCompile.javaCompiler.set(compiler)
+        javaCompile.options.forkOptions.javaHome = new File("custom/java_home/path")
+
+        when:
+        def spec = javaCompile.createSpec()
+        def actualCompiler = javaCompile.javaCompiler.get()
+
+        then:
+        spec.compileOptions.forkOptions.javaHome == javaHome
+        spec.compileOptions.forkOptions.executable == null
+        actualCompiler.metadata.installationPath.toString() == javaHome.toString()
+    }
+
+    def "uses custom java_home over custom executable"() {
+        def javaCompile = project.tasks.create('compileJava', JavaCompile)
+        javaCompile.destinationDirectory.fileValue(new File('tmp'))
+        def javaHome = Jvm.current().javaHome
+
+        given:
+        javaCompile.options.forkOptions.javaHome = javaHome
+        javaCompile.options.forkOptions.executable = "/custom/executable/path"
+
+        when:
+        def spec = javaCompile.createSpec()
+        def actualCompiler = javaCompile.javaCompiler.get()
+
+        then:
+        spec.compileOptions.forkOptions.javaHome == javaHome
+        spec.compileOptions.forkOptions.executable == null
+        actualCompiler.metadata.installationPath.toString() == javaHome.toString()
+    }
+
+    def "fails if custom executable does not exist"() {
+        def javaCompile = project.tasks.create("compileJava", JavaCompile)
+        def invalidjavac = "invalidjavac"
+
+        when:
+        javaCompile.options.forkOptions.executable = invalidjavac
+        javaCompile.createSpec()
+
+        then:
+        def e = thrown(AbstractProperty.PropertyQueryException)
+        e.message.contains("Failed to calculate the value of task ':compileJava' property 'javaCompiler'")
+        def cause = e.cause
+        cause.message.contains("The configured executable does not exist")
+        cause.message.contains(invalidjavac)
     }
 
     def 'uses release property combined with toolchain compiler'() {

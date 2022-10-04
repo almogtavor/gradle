@@ -21,12 +21,21 @@ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.integtests.fixtures.AvailableJavaHomes
 import org.gradle.integtests.fixtures.ToBeFixedForConfigurationCache
 import org.gradle.internal.jvm.Jvm
+import org.gradle.internal.jvm.inspection.JvmInstallationMetadata
+import org.gradle.test.fixtures.file.TestFile
 import org.gradle.util.Requires
+import org.gradle.util.internal.TextUtil
 import spock.lang.IgnoreIf
 
+import static org.gradle.integtests.fixtures.AvailableJavaHomes.getDifferentVersion
+import static org.gradle.integtests.fixtures.AvailableJavaHomes.getJvmInstallationMetadata
 import static org.junit.Assume.assumeNotNull
 
 class JavaCompileToolchainIntegrationTest extends AbstractIntegrationSpec {
+
+    def setup() {
+        file("src/main/java/Foo.java") << "public class Foo {}"
+    }
 
     @IgnoreIf({ AvailableJavaHomes.differentJdk == null })
     def "can manually set java compiler via #type toolchain on java compile task"() {
@@ -39,8 +48,6 @@ class JavaCompileToolchainIntegrationTest extends AbstractIntegrationSpec {
                 }
             }
         """
-
-        file("src/main/java/Foo.java") << "public class Foo {}"
 
         when:
         runWithToolchainConfigured(jdk)
@@ -72,8 +79,6 @@ class JavaCompileToolchainIntegrationTest extends AbstractIntegrationSpec {
             }
         """
 
-        file("src/main/java/Foo.java") << "public class Foo {}"
-
         when:
         runWithToolchainConfigured(someJdk)
 
@@ -93,9 +98,7 @@ class JavaCompileToolchainIntegrationTest extends AbstractIntegrationSpec {
                     languageVersion = JavaLanguageVersion.of(99)
                 }
             }
-"""
-
-        file("src/main/java/Foo.java") << "public class Foo {}"
+        """
 
         when:
         failure = executer
@@ -120,8 +123,6 @@ class JavaCompileToolchainIntegrationTest extends AbstractIntegrationSpec {
             }
         """
 
-        file("src/main/java/Foo.java") << "public class Foo {}"
-
         when:
         runWithToolchainConfigured(java7jdk)
 
@@ -144,20 +145,20 @@ class JavaCompileToolchainIntegrationTest extends AbstractIntegrationSpec {
             }
         """
 
-        file("src/main/java/Foo.java") << """
-public class Foo {
-    public void foo() {
-        java.util.function.Function<String, String> append = (var string) -> string + " ";
-    }
-}
-"""
+        file("src/main/java/Bar.java") << """
+            public class Bar {
+                public void bar() {
+                    java.util.function.Function<String, String> append = (var string) -> string + " ";
+                }
+            }
+        """
 
         when:
         runWithToolchainConfigured(jdk11)
 
         then:
         outputContains("Compiling with toolchain '${jdk11.javaHome.absolutePath}'.")
-        javaClassFile("Foo.class").exists()
+        javaClassFile("Bar.class").exists()
     }
 
     def "uses correct vendor when selecting a toolchain"() {
@@ -171,8 +172,6 @@ public class Foo {
                 }
             }
         """
-
-        file("src/main/java/Foo.java") << """public class Foo {}"""
 
         when:
         runWithToolchainConfigured(Jvm.current())
@@ -195,8 +194,6 @@ public class Foo {
             }
         """
 
-        file("src/main/java/Foo.java") << """public class Foo {}"""
-
         when:
         fails("compileJava")
 
@@ -216,8 +213,6 @@ public class Foo {
                 }
             }
         """
-
-        file("src/main/java/Foo.java") << "public class Foo {}"
 
         when:
         runWithToolchainConfigured(jdk8)
@@ -240,9 +235,7 @@ public class Foo {
                     languageVersion = JavaLanguageVersion.of(${jdk.javaVersion.majorVersion})
                 }
             }
-"""
-
-        file("src/main/java/Foo.java") << "public class Foo {}"
+        """
 
         when:
         failure = executer
@@ -280,9 +273,7 @@ public class Foo {
                     logger.lifecycle("task.targetCompatibility = \$targetCompatibility")
                 }
             }
-"""
-
-        file("src/main/java/Foo.java") << "public class Foo {}"
+        """
 
         when:
         runWithToolchainConfigured(jdk)
@@ -320,9 +311,7 @@ public class Foo {
                     logger.lifecycle("task.targetCompatibility = \$targetCompatibility")
                 }
             }
-"""
-
-        file("src/main/java/Foo.java") << "public class Foo {}"
+        """
 
         when:
         runWithToolchainConfigured(jdk11)
@@ -356,8 +345,6 @@ public class Foo {
             }
         """
 
-        file("src/main/java/Foo.java") << "public class Foo {}"
-
         when:
         runWithToolchainConfigured(jdk)
 
@@ -380,9 +367,9 @@ public class Foo {
         ]
     }
 
-    /*
-    This test covers the case where in Java8 the class name becomes fully qualified in the deprecation message which is
-    somehow caused by invoking javacTask.getElements() in the IncrementalCompileTask of the incremental compiler plugin.
+    /**
+     * This test covers the case where in Java8 the class name becomes fully qualified in the deprecation message which is
+     * somehow caused by invoking javacTask.getElements() in the IncrementalCompileTask of the incremental compiler plugin.
      */
     def "Java deprecation messages with different JDKs"() {
         def jdk = AvailableJavaHomes.getJdk(javaVersion)
@@ -418,7 +405,7 @@ public class Foo {
             }
         """
 
-        executer.expectDeprecationWarning("$fileWithDeprecation:5: warning: $deprecationMessage");
+        executer.expectDeprecationWarning("$fileWithDeprecation:5: warning: $deprecationMessage")
 
         when:
         runWithToolchainConfigured(jdk)
@@ -440,12 +427,109 @@ public class Foo {
         JavaVersion.VERSION_17  | "[deprecation] foo() in Foo has been deprecated"
     }
 
+    def "uses #what toolchain #when"() {
+        JvmInstallationMetadata jdkMetadataCurrent = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        // When at least one toolchain is used for configuration, expect the first toolchain to be the target.
+        // Otherwise, expect the current toolchain as a fallback
+        JvmInstallationMetadata targetJdk = jdkMetadataCurrent
+        def useJdk = {
+            if (targetJdk === jdkMetadataCurrent) {
+                targetJdk = jdkMetadata1
+                return jdkMetadata1
+            } else {
+                return jdkMetadata2
+            }
+        }
+
+        buildFile << """
+            apply plugin: "java"
+        """
+
+        // Order of if's is important as it denotes toolchain priority
+        if (withTool) {
+            configureTool(useJdk())
+        }
+        if (withJavaHome) {
+            configureForkOptionsJavaHome(useJdk())
+        }
+        if (withExecutable) {
+            configureForkOptionsExecutable(useJdk())
+        }
+        if (withJavaExtension) {
+            configureJavaExtension(useJdk())
+        }
+
+        when:
+        withInstallations(jdkMetadataCurrent, jdkMetadata1, jdkMetadata2).run(":compileJava", "--info")
+
+        then:
+        executedAndNotSkipped(":compileJava")
+        outputContains("Compiling with toolchain '${targetJdk.javaHome.toAbsolutePath()}'")
+
+        where:
+        what             | when                                 | withTool | withJavaHome | withExecutable | withJavaExtension
+        "current JVM"    | "when toolchains are not configured" | false    | false        | false          | false
+        "java extension" | "when configured"                    | false    | false        | false          | true
+        "executable"     | "when configured"                    | false    | false        | true           | false
+        "java home"      | "when configured"                    | false    | true         | false          | false
+        "assigned tool"  | "when configured"                    | true     | false        | false          | false
+        "executable"     | "over java extension"                | false    | false        | true           | true
+        "java home"      | "over executable and java extension" | false    | true         | true           | true
+        "assigned tool"  | "over everything else"               | true     | true         | true           | true
+    }
+
+    private TestFile configureJavaExtension(JvmInstallationMetadata jdk) {
+        buildFile << """
+            java {
+                toolchain {
+                    languageVersion = JavaLanguageVersion.of(${jdk.languageVersion.majorVersion})
+                }
+            }
+        """
+    }
+
+    private TestFile configureForkOptionsExecutable(JvmInstallationMetadata jdk) {
+        buildFile << """
+            compileJava {
+                options.forkOptions.executable = "${TextUtil.normaliseFileSeparators(jdk.javaHome.toString() + "/bin/javac")}"
+            }
+        """
+    }
+
+    private TestFile configureForkOptionsJavaHome(JvmInstallationMetadata jdk) {
+        buildFile << """
+            compileJava {
+                options.forkOptions.javaHome = file("${TextUtil.normaliseFileSeparators(jdk.javaHome.toString())}")
+            }
+        """
+    }
+
+    private TestFile configureTool(JvmInstallationMetadata jdk) {
+        buildFile << """
+            compileJava {
+                javaCompiler = javaToolchains.compilerFor {
+                    languageVersion = JavaLanguageVersion.of(${jdk.languageVersion.majorVersion})
+                }
+            }
+        """
+    }
+
     def runWithToolchainConfigured(Jvm jvm) {
         result = executer
             .withArgument("-Porg.gradle.java.installations.paths=" + jvm.javaHome.absolutePath)
             .withArgument("--info")
             .withTasks("compileJava")
             .run()
+    }
+
+    private withInstallations(JvmInstallationMetadata... jdkMetadata) {
+        def installationPaths = jdkMetadata.collect { it.javaHome.toAbsolutePath().toString() }.join(",")
+        executer
+            .withArgument("-Porg.gradle.java.installations.paths=" + installationPaths)
+        this
     }
 
 }

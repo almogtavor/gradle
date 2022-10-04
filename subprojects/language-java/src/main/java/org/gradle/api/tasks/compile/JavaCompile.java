@@ -16,6 +16,7 @@
 
 package org.gradle.api.tasks.compile;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.file.FileCollection;
@@ -254,6 +255,7 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
         return result;
     }
 
+    @VisibleForTesting
     DefaultJavaCompileSpec createSpec() {
         List<File> sourcesRoots = CompilationSourceDirs.inferSourceRoots((FileTreeInternal) getStableSources().getAsFileTree());
         JavaModuleDetector javaModuleDetector = getJavaModuleDetector();
@@ -294,6 +296,7 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
         ForkOptions forkOptions = compileOptions.getForkOptions();
         JavaInstallationMetadata metadata = getJavaCompiler().get().getMetadata();
         forkOptions.setJavaHome(metadata.getInstallationPath().getAsFile());
+        forkOptions.setExecutable(null);
         return new DefaultJavaCompileSpecFactory(compileOptions, metadata).create();
     }
 
