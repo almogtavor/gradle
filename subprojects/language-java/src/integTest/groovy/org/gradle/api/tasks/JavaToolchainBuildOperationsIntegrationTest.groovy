@@ -297,7 +297,7 @@ class JavaToolchainBuildOperationsIntegrationTest extends AbstractIntegrationSpe
         where:
         option       | configure                                       | appendPath
         "java home"  | 'options.forkOptions.javaHome = file("<path>")' | ''
-        "executable" | 'options.forkOptions.executable = "<path>"'     | '/bin/java' // TODO: why changing this to `/bin/javac` fails the build?
+        "executable" | 'options.forkOptions.executable = "<path>"'     | '/bin/javac'
     }
 
     def "emits toolchain usages for compilation that configures java home overriding toolchain from java extension"() {
