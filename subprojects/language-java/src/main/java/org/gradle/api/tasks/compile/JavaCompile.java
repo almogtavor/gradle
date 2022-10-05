@@ -306,12 +306,14 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
             spec.setRelease(compileOptions.getRelease().get());
         } else {
             boolean isSourceOrTargetConfigured = false;
-            if (getSourceCompatibility() != null) {
-                spec.setSourceCompatibility(getSourceCompatibility());
+            String sourceCompatibility = getSourceCompatibility();
+            if (sourceCompatibility != null) {
+                spec.setSourceCompatibility(sourceCompatibility);
                 isSourceOrTargetConfigured = true;
             }
-            if (getTargetCompatibility() != null) {
-                spec.setTargetCompatibility(getTargetCompatibility());
+            String targetCompatibility = getTargetCompatibility();
+            if (targetCompatibility != null) {
+                spec.setTargetCompatibility(targetCompatibility);
                 isSourceOrTargetConfigured = true;
             }
             if (!isSourceOrTargetConfigured) {

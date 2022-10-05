@@ -298,21 +298,24 @@ public class JavaBasePlugin implements Plugin<Project> {
 
     private Callable<String> determineCompatibility(AbstractCompile compile, JavaPluginExtension javaExtension, Supplier<JavaVersion> javaVersionSupplier, Supplier<JavaVersion> rawJavaVersionSupplier) {
         return () -> {
+            JavaToolchainSpecInternal toolchain = (JavaToolchainSpecInternal) javaExtension.getToolchain();
+            toolchain.finalizeProperties();
+            boolean isToolchainConfigured = toolchain.isConfigured();
             if (compile instanceof JavaCompile) {
                 JavaCompile javaCompile = (JavaCompile) compile;
                 if (javaCompile.getOptions().getRelease().isPresent()) {
                     // Release set on the task wins, no need to check *Compat has having both is illegal anyway
                     return JavaVersion.toVersion(javaCompile.getOptions().getRelease().get()).toString();
-                } else if (javaCompile.getJavaCompiler().isPresent()) {
-                    // Toolchains in use
-                    checkToolchainAndCompatibilityUsage(javaExtension, rawJavaVersionSupplier);
-                    return javaCompile.getJavaCompiler().get().getMetadata().getLanguageVersion().toString();
+                } else {
+                    checkToolchainAndCompatibilityUsage(isToolchainConfigured, rawJavaVersionSupplier);
+                    if (isToolchainConfigured) {
+                        return javaCompile.getJavaCompiler().get().getMetadata().getLanguageVersion().toString();
+                    }
                 }
-            }
-            if (compile instanceof GroovyCompile) {
+            } else if (compile instanceof GroovyCompile) {
                 GroovyCompile groovyCompile = (GroovyCompile) compile;
                 if (groovyCompile.getJavaLauncher().isPresent()) {
-                    checkToolchainAndCompatibilityUsage(javaExtension, rawJavaVersionSupplier);
+                    checkToolchainAndCompatibilityUsage(isToolchainConfigured, rawJavaVersionSupplier);
                     return groovyCompile.getJavaLauncher().get().getMetadata().getLanguageVersion().toString();
                 }
             }
@@ -320,8 +323,8 @@ public class JavaBasePlugin implements Plugin<Project> {
         };
     }
 
-    private void checkToolchainAndCompatibilityUsage(JavaPluginExtension javaExtension, Supplier<JavaVersion> rawJavaVersionSupplier) {
-        if (((JavaToolchainSpecInternal) javaExtension.getToolchain()).isConfigured() && rawJavaVersionSupplier.get() != null) {
+    private void checkToolchainAndCompatibilityUsage(boolean isToolchainConfigured, Supplier<JavaVersion> rawJavaVersionSupplier) {
+        if (isToolchainConfigured && rawJavaVersionSupplier.get() != null) {
             throw new InvalidUserDataException("The new Java toolchain feature cannot be used at the project level in combination with source and/or target compatibility");
         }
     }
