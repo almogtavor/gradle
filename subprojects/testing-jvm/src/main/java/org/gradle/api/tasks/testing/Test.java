@@ -32,7 +32,6 @@ import org.gradle.api.file.FileTree;
 import org.gradle.api.file.FileTreeElement;
 import org.gradle.api.internal.DocumentationRegistry;
 import org.gradle.api.internal.classpath.ModuleRegistry;
-import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.internal.tasks.testing.JvmTestExecutionSpec;
 import org.gradle.api.internal.tasks.testing.TestExecutableUtils;
 import org.gradle.api.internal.tasks.testing.TestExecuter;
@@ -49,6 +48,7 @@ import org.gradle.api.jvm.ModularitySpec;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Classpath;
@@ -205,7 +205,7 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
     private Provider<JavaLauncher> createDefaultJavaLauncher() {
         final ObjectFactory objectFactory = getObjectFactory();
         final JavaToolchainService javaToolchainService = getJavaToolchainService();
-        DefaultProvider<JavaToolchainSpec> executableOverrideToolchainSpec = new DefaultProvider<JavaToolchainSpec>(new Callable<JavaToolchainSpec>() {
+        Provider<JavaToolchainSpec> executableOverrideToolchainSpec = getProviderFactory().provider(new Callable<JavaToolchainSpec>() {
             @Override
             public JavaToolchainSpec call() {
                 return TestExecutableUtils.getExecutableToolchainSpec(Test.this, objectFactory);
@@ -222,46 +222,6 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
                     return javaToolchainService.launcherFor(spec);
                 }
             });
-    }
-
-    @Inject
-    protected ObjectFactory getObjectFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected JavaToolchainService getJavaToolchainService() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected ActorFactory getActorFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected WorkerProcessFactory getProcessBuilderFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected Factory<PatternSet> getPatternSetFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected JavaForkOptionsFactory getForkOptionsFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected ModuleRegistry getModuleRegistry() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected JavaModuleDetector getJavaModuleDetector() {
-        throw new UnsupportedOperationException();
     }
 
     /**
@@ -670,11 +630,11 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
      */
     @Override
     protected JvmTestExecutionSpec createTestExecutionSpec() {
-        return createSpec();
+        return createJvmTestExecutionSpec();
     }
 
     @VisibleForTesting
-    JvmTestExecutionSpec createSpec() {
+    JvmTestExecutionSpec createJvmTestExecutionSpec() {
         JavaForkOptions javaForkOptions = getForkOptionsFactory().newJavaForkOptions();
         copyTo(javaForkOptions);
         JavaModuleDetector javaModuleDetector = getJavaModuleDetector();
@@ -1279,5 +1239,50 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
     @Nested
     public Property<JavaLauncher> getJavaLauncher() {
         return javaLauncher;
+    }
+
+    @Inject
+    protected ObjectFactory getObjectFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected JavaToolchainService getJavaToolchainService() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected ProviderFactory getProviderFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected ActorFactory getActorFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected WorkerProcessFactory getProcessBuilderFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected Factory<PatternSet> getPatternSetFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected JavaForkOptionsFactory getForkOptionsFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected ModuleRegistry getModuleRegistry() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected JavaModuleDetector getJavaModuleDetector() {
+        throw new UnsupportedOperationException();
     }
 }

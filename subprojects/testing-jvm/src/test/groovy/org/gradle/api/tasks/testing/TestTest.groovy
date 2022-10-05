@@ -40,7 +40,7 @@ class TestTest extends AbstractProjectBuilderSpec {
         def javaHome = Jvm.current().javaHome
 
         when:
-        def spec = task.createSpec()
+        def spec = task.createJvmTestExecutionSpec()
         def actualLauncher = task.javaLauncher.get()
 
         then:
@@ -63,7 +63,7 @@ class TestTest extends AbstractProjectBuilderSpec {
         task.executable = "/test/custom/executable/java"
 
         when:
-        def spec = task.createSpec()
+        def spec = task.createJvmTestExecutionSpec()
 
         then:
         spec.javaForkOptions.executable == "/test/toolchain/bin/java"
@@ -75,7 +75,7 @@ class TestTest extends AbstractProjectBuilderSpec {
 
         when:
         testTask.executable = invalidJava
-        testTask.createSpec()
+        testTask.createJvmTestExecutionSpec()
 
         then:
         def e = thrown(AbstractProperty.PropertyQueryException)

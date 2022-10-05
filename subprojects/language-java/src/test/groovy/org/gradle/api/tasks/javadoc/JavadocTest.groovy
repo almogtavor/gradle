@@ -85,7 +85,7 @@ class JavadocTest extends AbstractProjectBuilderSpec {
         def javaHome = Jvm.current().javaHome
 
         when:
-        def spec = task.createSpec(Mock(StandardJavadocDocletOptions))
+        def spec = task.createJavadocSpec(Mock(StandardJavadocDocletOptions))
         def actualTool = task.javadocTool.get()
 
         then:
@@ -98,7 +98,7 @@ class JavadocTest extends AbstractProjectBuilderSpec {
         task.executable = "/test/custom/executable/java"
 
         when:
-        def spec = task.createSpec(Mock(StandardJavadocDocletOptions))
+        def spec = task.createJavadocSpec(Mock(StandardJavadocDocletOptions))
 
         then:
         spec.executable == "/test/toolchain/bin/javadoc"
@@ -109,7 +109,7 @@ class JavadocTest extends AbstractProjectBuilderSpec {
 
         when:
         task.executable = invalidJavadoc
-        task.createSpec(Mock(StandardJavadocDocletOptions))
+        task.createJavadocSpec(Mock(StandardJavadocDocletOptions))
 
         then:
         def e = thrown(AbstractProperty.PropertyQueryException)

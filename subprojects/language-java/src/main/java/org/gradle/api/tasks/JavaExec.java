@@ -22,11 +22,11 @@ import org.gradle.api.Action;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.internal.ConventionTask;
-import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.jvm.ModularitySpec;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.internal.JavaExecExecutableUtils;
 import org.gradle.api.tasks.options.Option;
 import org.gradle.internal.jvm.DefaultModularitySpec;
@@ -132,37 +132,21 @@ public class JavaExec extends ConventionTask implements JavaExecSpec {
         javaExecSpec.getModularity().getInferModulePath().convention(modularity.getInferModulePath());
 
         JavaToolchainService javaToolchainService = getJavaToolchainService();
-        // TODO: is there a better way to create the provider here?
-        Provider<JavaLauncher> defaultJavaLauncher = new DefaultProvider<>(() ->
-            JavaExecExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
+        Provider<JavaLauncher> defaultJavaLauncher = getProviderFactory().provider(() ->
+                JavaExecExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
             .orElse(new CurrentJvmToolchainSpec(objectFactory))
             .flatMap(javaToolchainService::launcherFor);
         javaLauncher = objectFactory.property(JavaLauncher.class).convention(defaultJavaLauncher);
     }
 
-    @Inject
-    protected ObjectFactory getObjectFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected ExecActionFactory getExecActionFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected JavaToolchainService getJavaToolchainService() {
-        throw new UnsupportedOperationException();
-    }
-
     @TaskAction
     public void exec() {
-        JavaExecAction javaExecAction = createSpec();
+        JavaExecAction javaExecAction = createJavaExecAction();
         execResult.set(javaExecAction.execute());
     }
 
     @VisibleForTesting
-    JavaExecAction createSpec() {
+    JavaExecAction createJavaExecAction() {
         setJvmArgs(getJvmArgs()); // convention mapping for 'jvmArgs'
         JavaExecAction javaExecAction = getExecActionFactory().newJavaExecAction();
         javaExecSpec.copyTo(javaExecAction);
@@ -752,5 +736,25 @@ public class JavaExec extends ConventionTask implements JavaExecSpec {
     @Nested
     public Property<JavaLauncher> getJavaLauncher() {
         return javaLauncher;
+    }
+
+    @Inject
+    protected ObjectFactory getObjectFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected ExecActionFactory getExecActionFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected JavaToolchainService getJavaToolchainService() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected ProviderFactory getProviderFactory() {
+        throw new UnsupportedOperationException();
     }
 }

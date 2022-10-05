@@ -35,7 +35,7 @@ class JavaExecTest extends AbstractProjectBuilderSpec {
         def javaHome = Jvm.current().javaHome
 
         when:
-        def spec = task.createSpec()
+        def spec = task.createJavaExecAction()
         def actualLauncher = task.javaLauncher.get()
 
         then:
@@ -56,7 +56,7 @@ class JavaExecTest extends AbstractProjectBuilderSpec {
         task.executable = "/test/custom/executable/java"
 
         when:
-        def spec = task.createSpec()
+        def spec = task.createJavaExecAction()
 
         then:
         spec.executable == "/test/toolchain/bin/java"

@@ -24,12 +24,12 @@ import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.FileTree;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.internal.file.FileTreeInternal;
-import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.internal.tasks.compile.CompilationSourceDirs;
 import org.gradle.api.jvm.ModularitySpec;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
@@ -127,9 +127,8 @@ public class Javadoc extends SourceTask {
         ObjectFactory objectFactory = getObjectFactory();
         this.modularity = objectFactory.newInstance(DefaultModularitySpec.class);
         JavaToolchainService javaToolchainService = getJavaToolchainService();
-        // TODO: is there a better way to create the provider here?
-        Provider<JavadocTool> defaultJavadocTool = new DefaultProvider<>(() ->
-            JavadocExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
+        Provider<JavadocTool> defaultJavadocTool = getProviderFactory().provider(() ->
+                JavadocExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
             .orElse(new CurrentJvmToolchainSpec(objectFactory))
             .flatMap(javaToolchainService::javadocToolFor);
         this.javadocTool = objectFactory.property(JavadocTool.class)
@@ -185,7 +184,7 @@ public class Javadoc extends SourceTask {
 
         options.setSourceNames(sourceNames());
 
-        JavadocSpec spec = createSpec(options);
+        JavadocSpec spec = createJavadocSpec(options);
         getJavadocToolAdapter().execute(spec);
     }
 
@@ -203,7 +202,7 @@ public class Javadoc extends SourceTask {
     }
 
     @VisibleForTesting
-    JavadocSpec createSpec(StandardJavadocDocletOptions options) {
+    JavadocSpec createJavadocSpec(StandardJavadocDocletOptions options) {
         JavadocSpec spec = new JavadocSpec();
         spec.setOptions(options);
         spec.setIgnoreFailures(!isFailOnError());
@@ -218,11 +217,6 @@ public class Javadoc extends SourceTask {
 
     private JavadocToolAdapter getJavadocToolAdapter() {
         return (JavadocToolAdapter) getJavadocTool().get();
-    }
-
-    @Inject
-    protected JavaToolchainService getJavaToolchainService() {
-        throw new UnsupportedOperationException();
     }
 
     /**
@@ -441,6 +435,16 @@ public class Javadoc extends SourceTask {
 
     @Inject
     protected JavaModuleDetector getJavaModuleDetector() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected JavaToolchainService getJavaToolchainService() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected ProviderFactory getProviderFactory() {
         throw new UnsupportedOperationException();
     }
 }

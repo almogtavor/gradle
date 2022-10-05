@@ -25,7 +25,6 @@ import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.internal.file.FileOperations;
 import org.gradle.api.internal.file.FileTreeInternal;
 import org.gradle.api.internal.file.temp.TemporaryFileProvider;
-import org.gradle.api.internal.provider.DefaultProvider;
 import org.gradle.api.internal.tasks.compile.CleaningJavaCompiler;
 import org.gradle.api.internal.tasks.compile.CommandLineJavaCompileSpec;
 import org.gradle.api.internal.tasks.compile.CompilationSourceDirs;
@@ -42,6 +41,7 @@ import org.gradle.api.jvm.ModularitySpec;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
+import org.gradle.api.provider.ProviderFactory;
 import org.gradle.api.tasks.CacheableTask;
 import org.gradle.api.tasks.CompileClasspath;
 import org.gradle.api.tasks.IgnoreEmptyDirectories;
@@ -104,8 +104,7 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
         compileOptions = objectFactory.newInstance(CompileOptions.class);
         modularity = objectFactory.newInstance(DefaultModularitySpec.class);
         JavaToolchainService javaToolchainService = getJavaToolchainService();
-        // TODO: is there a better way to create the provider here?
-        Provider<JavaCompiler> defaultJavaCompiler = new DefaultProvider<>(() ->
+        Provider<JavaCompiler> defaultJavaCompiler = getProviderFactory().provider(() ->
             JavaCompileExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
             .orElse(new CurrentJvmToolchainSpec(objectFactory))
             .flatMap(javaToolchainService::compilerFor);
@@ -113,16 +112,6 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
         javaCompiler.finalizeValueOnRead();
         compileOptions.getIncrementalAfterFailure().convention(true);
         CompilerForkUtils.doNotCacheIfForkingViaExecutable(compileOptions, getOutputs());
-    }
-
-    @Inject
-    protected ObjectFactory getObjectFactory() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Inject
-    protected JavaToolchainService getJavaToolchainService() {
-        throw new UnsupportedOperationException();
     }
 
     /**
@@ -374,5 +363,20 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
     @InputFiles
     protected FileCollection getStableSources() {
         return stableSources;
+    }
+
+    @Inject
+    protected ObjectFactory getObjectFactory() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected JavaToolchainService getJavaToolchainService() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Inject
+    protected ProviderFactory getProviderFactory() {
+        throw new UnsupportedOperationException();
     }
 }
