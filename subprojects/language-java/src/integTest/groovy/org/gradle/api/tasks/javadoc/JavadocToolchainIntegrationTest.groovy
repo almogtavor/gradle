@@ -128,6 +128,61 @@ class JavadocToolchainIntegrationTest extends AbstractIntegrationSpec {
         "assigned tool"  | "over everything else"               | true     | true           | true
     }
 
+    def "uses #what toolchain #when (without java plugin)"() {
+        JvmInstallationMetadata jdkMetadataCurrent = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        // When at least one toolchain is used for configuration, expect the first toolchain to be the target.
+        // Otherwise, expect the current toolchain as a fallback
+        JvmInstallationMetadata targetJdk = jdkMetadataCurrent
+        def useJdk = {
+            if (targetJdk === jdkMetadataCurrent) {
+                targetJdk = jdkMetadata1
+                return jdkMetadata1
+            } else {
+                return jdkMetadata2
+            }
+        }
+
+        file('src/main/java/Lib.java') << testLib()
+
+        buildFile << """
+            apply plugin: JvmToolchainsPlugin
+
+            task javadoc(type: Javadoc) {
+                source = project.layout.files("src/main/java")
+                destinationDir = project.layout.buildDirectory.dir("docs/javadoc").get().getAsFile()
+            }
+
+            javadoc {
+                options.jFlags("-version")
+            }
+        """
+
+        // Order of if's is important as it denotes toolchain priority
+        if (withTool) {
+            configureJavadocTool(useJdk())
+        }
+        if (withExecutable) {
+            configureExecutable(useJdk())
+        }
+
+        when:
+        withInstallations(jdkMetadataCurrent, jdkMetadata1, jdkMetadata2).run(":javadoc")
+
+        then:
+        executedAndNotSkipped(":javadoc")
+        errorOutput.contains(targetJdk.javaVersion)
+
+        where:
+        what            | when                                 | withTool | withExecutable
+        "current JVM"   | "when toolchains are not configured" | false    | false
+        "executable"    | "when configured"                    | false    | true
+        "assigned tool" | "when configured"                    | true     | false
+        "assigned tool" | "over everything else"               | true     | true
+    }
+
     private TestFile configureJavaExtension(JvmInstallationMetadata jdk) {
         buildFile << """
             java {
