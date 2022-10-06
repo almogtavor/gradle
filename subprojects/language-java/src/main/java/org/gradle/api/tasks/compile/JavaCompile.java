@@ -63,8 +63,8 @@ import org.gradle.jvm.toolchain.JavaCompiler;
 import org.gradle.jvm.toolchain.JavaInstallationMetadata;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
 import org.gradle.jvm.toolchain.JavaToolchainService;
-import org.gradle.jvm.toolchain.internal.CurrentJvmToolchainSpec;
 import org.gradle.jvm.toolchain.internal.DefaultToolchainJavaCompiler;
+import org.gradle.jvm.toolchain.internal.FallbackToolchainSpec;
 import org.gradle.language.base.internal.compile.CompileSpec;
 import org.gradle.language.base.internal.compile.Compiler;
 import org.gradle.work.Incremental;
@@ -106,7 +106,7 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
         JavaToolchainService javaToolchainService = getJavaToolchainService();
         Provider<JavaCompiler> defaultJavaCompiler = getProviderFactory().provider(() ->
             JavaCompileExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
-            .orElse(new CurrentJvmToolchainSpec(objectFactory))
+            .orElse(new FallbackToolchainSpec(objectFactory))
             .flatMap(javaToolchainService::compilerFor);
         javaCompiler = objectFactory.property(JavaCompiler.class).convention(defaultJavaCompiler);
         javaCompiler.finalizeValueOnRead();

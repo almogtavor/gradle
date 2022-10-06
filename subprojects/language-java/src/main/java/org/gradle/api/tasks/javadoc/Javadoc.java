@@ -51,7 +51,7 @@ import org.gradle.internal.jvm.DefaultModularitySpec;
 import org.gradle.internal.jvm.JavaModuleDetector;
 import org.gradle.jvm.toolchain.JavaToolchainService;
 import org.gradle.jvm.toolchain.JavadocTool;
-import org.gradle.jvm.toolchain.internal.CurrentJvmToolchainSpec;
+import org.gradle.jvm.toolchain.internal.FallbackToolchainSpec;
 import org.gradle.util.internal.ConfigureUtil;
 
 import javax.annotation.Nullable;
@@ -129,7 +129,7 @@ public class Javadoc extends SourceTask {
         JavaToolchainService javaToolchainService = getJavaToolchainService();
         Provider<JavadocTool> defaultJavadocTool = getProviderFactory().provider(() ->
                 JavadocExecutableUtils.getExecutableOverrideToolchainSpec(this, objectFactory))
-            .orElse(new CurrentJvmToolchainSpec(objectFactory))
+            .orElse(new FallbackToolchainSpec(objectFactory))
             .flatMap(javaToolchainService::javadocToolFor);
         this.javadocTool = objectFactory.property(JavadocTool.class)
             .convention(defaultJavadocTool);

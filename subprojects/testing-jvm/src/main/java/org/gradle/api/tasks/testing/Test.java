@@ -82,7 +82,7 @@ import org.gradle.internal.work.WorkerLeaseService;
 import org.gradle.jvm.toolchain.JavaLauncher;
 import org.gradle.jvm.toolchain.JavaToolchainService;
 import org.gradle.jvm.toolchain.JavaToolchainSpec;
-import org.gradle.jvm.toolchain.internal.CurrentJvmToolchainSpec;
+import org.gradle.jvm.toolchain.internal.FallbackToolchainSpec;
 import org.gradle.process.CommandLineArgumentProvider;
 import org.gradle.process.JavaDebugOptions;
 import org.gradle.process.JavaForkOptions;
@@ -213,7 +213,7 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
         });
 
         Provider<JavaToolchainSpec> defaultToolchainSpec =
-            executableOverrideToolchainSpec.orElse(new CurrentJvmToolchainSpec(objectFactory));
+            executableOverrideToolchainSpec.orElse(new FallbackToolchainSpec(objectFactory));
 
         return defaultToolchainSpec
             .flatMap(new Transformer<Provider<JavaLauncher>, JavaToolchainSpec>() {
