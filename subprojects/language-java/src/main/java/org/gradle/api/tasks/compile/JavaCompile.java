@@ -249,7 +249,6 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
         List<File> sourcesRoots = CompilationSourceDirs.inferSourceRoots((FileTreeInternal) getStableSources().getAsFileTree());
         JavaModuleDetector javaModuleDetector = getJavaModuleDetector();
         boolean isModule = JavaModuleDetector.isModuleSource(modularity.getInferModulePath().get(), sourcesRoots);
-        boolean toolchainCompatibleWithJava8 = isToolchainCompatibleWithJava8();
         boolean isSourcepathUserDefined = compileOptions.getSourcepath() != null && !compileOptions.getSourcepath().isEmpty();
 
         final DefaultJavaCompileSpec spec = createBaseSpec();
@@ -263,10 +262,10 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
             compileOptions.setSourcepath(getProjectLayout().files(sourcesRoots));
         }
         spec.setAnnotationProcessorPath(compileOptions.getAnnotationProcessorPath() == null ? ImmutableList.of() : ImmutableList.copyOf(compileOptions.getAnnotationProcessorPath()));
-        configureCompatibilityOptions(spec);
+        configureCompileOptions(spec);
         spec.setSourcesRoots(sourcesRoots);
 
-        if (!toolchainCompatibleWithJava8) {
+        if (!isToolchainCompatibleWithJava8()) {
             spec.getCompileOptions().setHeaderOutputDirectory(null);
         }
         return spec;
@@ -289,23 +288,17 @@ public class JavaCompile extends AbstractCompile implements HasCompileOptions {
         return new DefaultJavaCompileSpecFactory(compileOptions, metadata).create();
     }
 
-    private void configureCompatibilityOptions(DefaultJavaCompileSpec spec) {
+    private void configureCompileOptions(DefaultJavaCompileSpec spec) {
         JavaInstallationMetadata toolchain = getJavaCompiler().get().getMetadata();
         if (compileOptions.getRelease().isPresent()) {
             spec.setRelease(compileOptions.getRelease().get());
         } else {
-            boolean isSourceOrTargetConfigured = false;
             String sourceCompatibility = getSourceCompatibility();
-            if (sourceCompatibility != null) {
-                spec.setSourceCompatibility(sourceCompatibility);
-                isSourceOrTargetConfigured = true;
-            }
             String targetCompatibility = getTargetCompatibility();
-            if (targetCompatibility != null) {
+            if (sourceCompatibility != null || targetCompatibility != null) {
+                spec.setSourceCompatibility(sourceCompatibility);
                 spec.setTargetCompatibility(targetCompatibility);
-                isSourceOrTargetConfigured = true;
-            }
-            if (!isSourceOrTargetConfigured) {
+            } else {
                 JavaLanguageVersion languageVersion = toolchain.getLanguageVersion();
                 if (languageVersion.canCompileOrRun(10)) {
                     spec.setRelease(languageVersion.asInt());
