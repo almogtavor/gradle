@@ -58,9 +58,11 @@ import org.gradle.api.tasks.testing.JUnitXmlReport;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.internal.Cast;
 import org.gradle.internal.deprecation.DeprecatableConfiguration;
+import org.gradle.jvm.toolchain.JavaCompiler;
 import org.gradle.jvm.toolchain.JavaToolchainService;
 import org.gradle.jvm.toolchain.JavaToolchainSpec;
 import org.gradle.jvm.toolchain.internal.DefaultToolchainSpec;
+import org.gradle.jvm.toolchain.internal.JavaToolchain;
 import org.gradle.jvm.toolchain.internal.JavaToolchainQueryService;
 import org.gradle.jvm.toolchain.internal.JavaToolchainSpecInternal;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
@@ -289,44 +291,40 @@ public class JavaBasePlugin implements Plugin<Project> {
     private void configureCompileDefaults(final Project project, final DefaultJavaPluginExtension javaExtension) {
         project.getTasks().withType(AbstractCompile.class).configureEach(compile -> {
             ConventionMapping conventionMapping = compile.getConventionMapping();
-            conventionMapping.map("sourceCompatibility", determineCompatibility(compile, javaExtension, javaExtension::getSourceCompatibility, javaExtension::getRawSourceCompatibility));
-            conventionMapping.map("targetCompatibility", determineCompatibility(compile, javaExtension, javaExtension::getTargetCompatibility, javaExtension::getRawTargetCompatibility));
+            conventionMapping.map("sourceCompatibility", () -> determineCompatibility(compile, javaExtension, javaExtension::getSourceCompatibility, javaExtension::getRawSourceCompatibility));
+            conventionMapping.map("targetCompatibility", () -> determineCompatibility(compile, javaExtension, javaExtension::getTargetCompatibility, javaExtension::getRawTargetCompatibility));
 
             compile.getDestinationDirectory().convention(project.getProviders().provider(new BackwardCompatibilityOutputDirectoryConvention(compile)));
         });
     }
 
-    private Callable<String> determineCompatibility(AbstractCompile compile, JavaPluginExtension javaExtension, Supplier<JavaVersion> javaVersionSupplier, Supplier<JavaVersion> rawJavaVersionSupplier) {
-        return () -> {
-            JavaToolchainSpecInternal toolchain = (JavaToolchainSpecInternal) javaExtension.getToolchain();
-            toolchain.finalizeProperties();
-            boolean isToolchainConfigured = toolchain.isConfigured();
-            if (compile instanceof JavaCompile) {
-                JavaCompile javaCompile = (JavaCompile) compile;
-                if (javaCompile.getOptions().getRelease().isPresent()) {
-                    // Release set on the task wins, no need to check *Compat has having both is illegal anyway
-                    return JavaVersion.toVersion(javaCompile.getOptions().getRelease().get()).toString();
-                } else {
-                    checkToolchainAndCompatibilityUsage(isToolchainConfigured, rawJavaVersionSupplier);
-                    if (isToolchainConfigured) {
-                        return javaCompile.getJavaCompiler().get().getMetadata().getLanguageVersion().toString();
-                    }
-                }
-            } else if (compile instanceof GroovyCompile) {
-                GroovyCompile groovyCompile = (GroovyCompile) compile;
-                if (groovyCompile.getJavaLauncher().isPresent()) {
-                    checkToolchainAndCompatibilityUsage(isToolchainConfigured, rawJavaVersionSupplier);
-                    return groovyCompile.getJavaLauncher().get().getMetadata().getLanguageVersion().toString();
-                }
-            }
-            return javaVersionSupplier.get().toString();
-        };
-    }
-
-    private void checkToolchainAndCompatibilityUsage(boolean isToolchainConfigured, Supplier<JavaVersion> rawJavaVersionSupplier) {
-        if (isToolchainConfigured && rawJavaVersionSupplier.get() != null) {
+    private static String determineCompatibility(AbstractCompile compile, JavaPluginExtension javaExtension, Supplier<JavaVersion> javaVersionSupplier, Supplier<JavaVersion> rawJavaVersionSupplier) {
+        boolean isJavaExtensionToolchainConfigured = ((JavaToolchainSpecInternal) javaExtension.getToolchain()).isConfigured();
+        boolean isJavaExtensionCompatibilityConfigured = rawJavaVersionSupplier.get() != null;
+        if (isJavaExtensionToolchainConfigured && isJavaExtensionCompatibilityConfigured) {
             throw new InvalidUserDataException("The new Java toolchain feature cannot be used at the project level in combination with source and/or target compatibility");
         }
+
+        if (compile instanceof JavaCompile) {
+            JavaCompile javaCompile = (JavaCompile) compile;
+            if (javaCompile.getOptions().getRelease().isPresent()) {
+                // Release set on the task wins, no need to check *Compat has having both is illegal anyway
+                return JavaVersion.toVersion(javaCompile.getOptions().getRelease().get()).toString();
+            } else {
+                JavaCompiler javaCompiler = javaCompile.getJavaCompiler().get();
+                boolean isFallbackToolchain = ((JavaToolchain) javaCompiler.getMetadata()).isFallbackToolchain();
+                if (!isFallbackToolchain) {
+                    return javaCompiler.getMetadata().getLanguageVersion().toString();
+                }
+            }
+        } else if (compile instanceof GroovyCompile) {
+            GroovyCompile groovyCompile = (GroovyCompile) compile;
+            if (groovyCompile.getJavaLauncher().isPresent()) {
+                return groovyCompile.getJavaLauncher().get().getMetadata().getLanguageVersion().toString();
+            }
+        }
+
+        return javaVersionSupplier.get().toString();
     }
 
     private void configureJavaDoc(final Project project, final JavaPluginExtension javaPluginExtension) {
