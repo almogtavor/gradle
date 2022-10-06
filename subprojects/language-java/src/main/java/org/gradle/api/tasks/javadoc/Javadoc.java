@@ -60,7 +60,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import static org.gradle.util.internal.GUtil.isTrue;
@@ -167,19 +166,8 @@ public class Javadoc extends SourceTask {
         }
 
         String maxMemory = getMaxMemory();
-        if (maxMemory != null) {
-            final List<String> jFlags = options.getJFlags();
-            final Iterator<String> jFlagsIt = jFlags.iterator();
-            boolean containsXmx = false;
-            while (!containsXmx && jFlagsIt.hasNext()) {
-                final String jFlag = jFlagsIt.next();
-                if (jFlag.startsWith("-Xmx")) {
-                    containsXmx = true;
-                }
-            }
-            if (!containsXmx) {
-                options.jFlags("-Xmx" + maxMemory);
-            }
+        if (maxMemory != null && options.getJFlags().stream().noneMatch(flag -> flag.startsWith("-Xmx"))) {
+            options.jFlags("-Xmx" + maxMemory);
         }
 
         options.setSourceNames(sourceNames());
