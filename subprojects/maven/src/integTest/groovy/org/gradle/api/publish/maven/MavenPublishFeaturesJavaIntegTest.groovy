@@ -39,6 +39,11 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
                 compileClasspath.extendsFrom(optionalFeatureImplementation)
             }
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 optionalFeatureImplementation 'org:optionaldep:1.0'
             }
@@ -48,7 +53,6 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
                 mapToOptional()
             }
         """
-        addMavenRepoIfConfigCache()
 
         when:
         run "publish"
@@ -121,6 +125,11 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
                 compileClasspath.extendsFrom(optionalFeature2Implementation)
             }
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 optionalFeature1Implementation 'org:optionaldep-g1:1.0'
                 optionalFeature2Implementation 'org:optionaldep1-g2:1.0'
@@ -136,7 +145,6 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
                 mapToOptional()
             }
         """
-        addMavenRepoIfConfigCache()
 
         when:
         run "publish"
@@ -191,6 +199,11 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
                 compileClasspath.extendsFrom(optionalFeatureImplementation)
             }
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 optionalFeatureImplementation 'org:optionaldep:1.0'
             }
@@ -214,7 +227,6 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
                 }
             }
         """
-        addMavenRepoIfConfigCache()
 
         when:
         if (failureText) {
@@ -295,6 +307,12 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
                 compileClasspath.extendsFrom(optionalFeatureImplementation)
             }
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
+
             dependencies {
                 optionalFeatureImplementation 'org:optionaldep:1.0'
             }
@@ -313,7 +331,6 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
             alt.artifact(file:altFile, builtBy: 'createFile')
 
         """
-        addMavenRepoIfConfigCache()
 
         when:
         run "publish"
@@ -376,6 +393,11 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
                 compileClasspath.extendsFrom(optionalFeatureImplementation)
             }
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 optionalFeatureImplementation 'org:optionaldep:1.0'
             }
@@ -396,8 +418,8 @@ class MavenPublishFeaturesJavaIntegTest extends AbstractMavenPublishFeaturesJava
             def altFile = file("\${buildDir}/\${name}-\${version}-alt.jar")
             task createFile { doFirst { altFile.parentFile.mkdirs(); altFile.text = "test file" } }
             alt.artifact(file:altFile, builtBy: 'createFile')
+
         """
-        addMavenRepoIfConfigCache()
 
         when:
         run "publish"

@@ -661,6 +661,15 @@ Maven publication 'maven' pom metadata warnings (silence with 'suppressPomMetada
     def "can publish java-library with capability requests"() {
         given:
         createBuildScripts("""
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+            ${withDocs() ? """tasks.javadoc {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+            """ : ""}
             dependencies {
                 implementation("org.test:foo:1.0") {
                     capabilities {
@@ -1006,6 +1015,7 @@ Maven publication 'maven' pom metadata warnings (silence with 'suppressPomMetada
                     }
                 }
             }
+            ${mavenRepoIfConfigCache()}
 """)
 
         when:
@@ -1098,13 +1108,18 @@ Maven publication 'maven' pom metadata warnings (silence with 'suppressPomMetada
 
     }
 
-    @ToBeFixedForConfigurationCache
     def 'can publish a java library using a virtual platform by ignoring it explicitly'() {
         given:
         javaLibrary(mavenRepo.module("org.test", "bar", "1.0")).withModuleMetadata().publish()
         javaLibrary(mavenRepo.module("org.test", "bar", "1.1")).withModuleMetadata().publish()
 
         createBuildScripts("""
+
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 api "org.test:bar:1.0"
                 api platform("org.test:platform:1.0")
@@ -1133,7 +1148,10 @@ Maven publication 'maven' pom metadata warnings (silence with 'suppressPomMetada
                     }
                 }
             }
+
+            ${mavenRepoIfConfigCache()}
         """)
+
 
         when:
         run "publish"

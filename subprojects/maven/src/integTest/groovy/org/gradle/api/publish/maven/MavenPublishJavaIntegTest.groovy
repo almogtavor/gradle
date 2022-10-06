@@ -79,10 +79,11 @@ class MavenPublishJavaIntegTest extends AbstractMavenPublishJavaIntegTest {
 
     def "a component's variant can be modified before publishing"() {
         given:
-        javaLibrary(mavenRepo.module("org", "foo", "1.0")).withModuleMetadata().publish()
-        javaLibrary(mavenRepo.module("org", "bar", "1.0")).withModuleMetadata().publish()
-
         createBuildScripts """
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
             dependencies {
                 api 'org:foo:1.0'
                 implementation 'org:bar:1.0'
@@ -98,7 +99,6 @@ class MavenPublishJavaIntegTest extends AbstractMavenPublishJavaIntegTest {
                 }
             }
         """
-        addMavenRepoIfConfigCache()
 
         when:
         succeeds "publish"

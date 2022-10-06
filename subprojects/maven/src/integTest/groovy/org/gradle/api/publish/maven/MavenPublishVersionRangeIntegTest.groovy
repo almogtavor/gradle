@@ -23,12 +23,6 @@ class MavenPublishVersionRangeIntegTest extends AbstractMavenPublishIntegTest {
 
     void "version range is mapped to maven syntax in published pom file"() {
         given:
-        ('A'..'E').each {
-            javaLibrary(mavenRepo.module("group", "project${it}", "1.0"))
-                .withModuleMetadata()
-                .publish()
-        }
-
         settingsFile << "rootProject.name = 'publishTest' "
         buildFile << """
             apply plugin: 'maven-publish'
@@ -48,6 +42,11 @@ class MavenPublishVersionRangeIntegTest extends AbstractMavenPublishIntegTest {
                 }
             }
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 api "group:projectA:latest.release"
                 api "group:projectB:latest.integration"
@@ -55,7 +54,6 @@ class MavenPublishVersionRangeIntegTest extends AbstractMavenPublishIntegTest {
                 api "group:projectD:[1.0,2.0)"
                 api "group:projectE:[1.0]"
             }"""
-        addMavenRepoIfConfigCache()
 
         when:
         run "publish"

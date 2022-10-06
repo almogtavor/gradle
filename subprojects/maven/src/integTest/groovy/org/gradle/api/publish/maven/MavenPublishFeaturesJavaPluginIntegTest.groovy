@@ -29,11 +29,15 @@ class MavenPublishFeaturesJavaPluginIntegTest extends AbstractMavenPublishFeatur
                 }
             }
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 featureImplementation 'org:optionaldep:1.0'
             }
         """
-        addMavenRepoIfConfigCache()
 
         when:
         run "publish"
@@ -89,13 +93,17 @@ class MavenPublishFeaturesJavaPluginIntegTest extends AbstractMavenPublishFeatur
                 }
             }
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 featureImplementation 'org:optionaldep:1.0'
             }
 
             $prop = "$newValue"
         """
-        addMavenRepoIfConfigCache()
 
         when:
         def mod = mavenRepo.module(group, name, version)

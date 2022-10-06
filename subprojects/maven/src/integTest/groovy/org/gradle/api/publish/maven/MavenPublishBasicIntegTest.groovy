@@ -420,8 +420,6 @@ class MavenPublishBasicIntegTest extends AbstractMavenPublishIntegTest {
 
     @Issue("https://github.com/gradle/gradle/issues/15009")
     def "fails publishing if a variant contains a dependency on an enforced platform"() {
-        mavenRepo.module("org", "platform", "1.0").asGradlePlatform().publish()
-
         settingsFile << """
             rootProject.name = 'publish'
         """
@@ -429,6 +427,11 @@ class MavenPublishBasicIntegTest extends AbstractMavenPublishIntegTest {
             plugins {
                 id 'java'
                 id 'maven-publish'
+            }
+
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
             }
 
             dependencies {
@@ -446,7 +449,6 @@ class MavenPublishBasicIntegTest extends AbstractMavenPublishIntegTest {
                 }
             }
         """
-        addMavenRepoIfConfigCache()
 
         when:
         fails ':publish'
@@ -472,6 +474,11 @@ In general publishing dependencies to enforced platforms is a mistake: enforced 
             group = 'com.acme'
             version = '0.999'
 
+            tasks.compileJava {
+                // Avoid resolving the classpath when caching the configuration
+                classpath = files()
+            }
+
             dependencies {
                 implementation enforcedPlatform('org:platform:1.0')
             }
@@ -491,7 +498,6 @@ In general publishing dependencies to enforced platforms is a mistake: enforced 
                 suppressedValidationErrors.add('enforced-platform')
             }
         """
-        addMavenRepoIfConfigCache()
 
         when:
         succeeds ':publish'
