@@ -148,7 +148,9 @@ class JavadocToolchainIntegrationTest extends AbstractIntegrationSpec {
         file('src/main/java/Lib.java') << testLib()
 
         buildFile << """
-            apply plugin: JvmToolchainsPlugin
+            plugins {
+                id 'jvm-toolchains'
+            }
 
             task javadoc(type: Javadoc) {
                 source = project.layout.files("src/main/java")
