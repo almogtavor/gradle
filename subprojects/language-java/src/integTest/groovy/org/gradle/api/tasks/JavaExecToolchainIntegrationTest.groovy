@@ -166,7 +166,7 @@ class JavaExecToolchainIntegrationTest extends AbstractIntegrationSpec {
 
             public class Main {
                 public static void main(String[] args) {
-                    System.out.println("Running main with '" + System.getProperty("java.home") + "'");
+                    System.out.println("App running with " + System.getProperty("java.home"));
                 }
             }
         """
@@ -206,7 +206,7 @@ class JavaExecToolchainIntegrationTest extends AbstractIntegrationSpec {
 
         then:
         executedAndNotSkipped(":run")
-        outputContains(targetJdk.javaHome.toAbsolutePath().toString())
+        outputContains("App running with ${targetJdk.javaHome.toAbsolutePath()}")
 
         where:
         what             | when                                 | withTool | withExecutable | withJavaExtension
@@ -216,6 +216,57 @@ class JavaExecToolchainIntegrationTest extends AbstractIntegrationSpec {
         "assigned tool"  | "when configured"                    | true     | false          | false
         "executable"     | "over java extension"                | false    | true           | true
         "assigned tool"  | "over everything else"               | true     | true           | true
+    }
+
+    def "uses #what toolchain #when (without application plugin)"() {
+        JvmInstallationMetadata jdkMetadataCurrent = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        // When at least one toolchain is used for configuration, expect the first toolchain to be the target.
+        // Otherwise, expect the current toolchain as a fallback
+        JvmInstallationMetadata targetJdk = jdkMetadataCurrent
+        def useJdk = {
+            if (targetJdk === jdkMetadataCurrent) {
+                targetJdk = jdkMetadata1
+                return jdkMetadata1
+            } else {
+                return jdkMetadata2
+            }
+        }
+
+        buildFile << """
+            plugins {
+                id 'jvm-toolchains'
+            }
+
+            task run(type: JavaExec) {
+                setJvmArgs(['-version'])
+                mainClass = 'None'
+            }
+        """
+
+        // Order of if's is important as it denotes toolchain priority
+        if (withTool) {
+            configureLauncher(useJdk())
+        }
+        if (withExecutable) {
+            configureExecutable(useJdk())
+        }
+
+        when:
+        withInstallations(jdkMetadataCurrent, jdkMetadata1, jdkMetadata2).run(":run", "--info")
+
+        then:
+        executedAndNotSkipped(":run")
+        outputContains("Command: ${targetJdk.javaHome.toAbsolutePath()}")
+
+        where:
+        what            | when                                 | withTool | withExecutable
+        "current JVM"   | "when toolchains are not configured" | false    | false
+        "executable"    | "when configured"                    | false    | true
+        "assigned tool" | "when configured"                    | true     | false
+        "assigned tool" | "over everything else"               | true     | true
     }
 
     private TestFile configureJavaExtension(JvmInstallationMetadata jdk) {
