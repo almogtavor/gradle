@@ -146,11 +146,11 @@ class JavaToolchainQueryServiceTest extends Specification {
         def eventEmitter = Stub(BuildOperationProgressEventEmitter)
         def toolchainFactory = new JavaToolchainFactory(Mock(JvmMetadataDetector), compilerFactory, toolFactory, TestFiles.fileFactory(), eventEmitter) {
             @Override
-            Optional<JavaToolchain> newInstance(InstallationLocation javaHome, JavaToolchainInput input) {
+            Optional<JavaToolchain> newInstance(InstallationLocation javaHome, JavaToolchainInput input, boolean isFallbackToolchain) {
                 String locationName = javaHome.location.name
                 def vendor = locationName.substring(5)
                 def metadata = newMetadata(new InstallationLocation(new File("/path/" + locationName), javaHome.source), vendor)
-                return Optional.of(new JavaToolchain(metadata, compilerFactory, toolFactory, TestFiles.fileFactory(), input, eventEmitter))
+                return Optional.of(new JavaToolchain(metadata, compilerFactory, toolFactory, TestFiles.fileFactory(), input, isFallbackToolchain, eventEmitter))
             }
         }
         def queryService = new JavaToolchainQueryService(registry, toolchainFactory, Mock(JavaToolchainProvisioningService), createProviderFactory(), TestUtil.objectFactory())
@@ -202,7 +202,41 @@ class JavaToolchainQueryServiceTest extends Specification {
         e.message == "No compatible toolchains found for request specification: {languageVersion=12, vendor=any, implementation=vendor-specific} (auto-detect true, auto-download true)."
     }
 
-    def "returns current JVM toolchain if filter is not configured"() {
+    def "returns current JVM toolchain if requested"() {
+        given:
+        def registry = createInstallationRegistry(["8", "9", "10"])
+        def toolchainFactory = newToolchainFactory()
+        def queryService = new JavaToolchainQueryService(registry, toolchainFactory, Mock(JavaToolchainProvisioningService), createProviderFactory(), TestUtil.objectFactory())
+
+        when:
+        def filter = new CurrentJvmToolchainSpec(TestUtil.objectFactory())
+        def toolchain = queryService.findMatchingToolchain(filter)
+
+        then:
+        toolchain.isPresent()
+        !toolchain.get().isFallbackToolchain()
+        toolchain.get().languageVersion == JavaLanguageVersion.of(Jvm.current().javaVersion.majorVersion)
+        toolchain.get().getInstallationPath().toString() == Jvm.current().javaHome.absolutePath
+    }
+
+    def "returns fallback toolchain if requested"() {
+        given:
+        def registry = createInstallationRegistry(["8", "9", "10"])
+        def toolchainFactory = newToolchainFactory()
+        def queryService = new JavaToolchainQueryService(registry, toolchainFactory, Mock(JavaToolchainProvisioningService), createProviderFactory(), TestUtil.objectFactory())
+
+        when:
+        def filter = new FallbackToolchainSpec(TestUtil.objectFactory())
+        def toolchain = queryService.findMatchingToolchain(filter)
+
+        then:
+        toolchain.isPresent()
+        toolchain.get().isFallbackToolchain()
+        toolchain.get().languageVersion == JavaLanguageVersion.of(Jvm.current().javaVersion.majorVersion)
+        toolchain.get().getInstallationPath().toString() == Jvm.current().javaHome.absolutePath
+    }
+
+    def "returns fallback toolchain if filter is not configured"() {
         given:
         def registry = createInstallationRegistry(["8", "9", "10"])
         def toolchainFactory = newToolchainFactory()
@@ -214,8 +248,94 @@ class JavaToolchainQueryServiceTest extends Specification {
 
         then:
         toolchain.isPresent()
+        toolchain.get().isFallbackToolchain()
         toolchain.get().languageVersion == JavaLanguageVersion.of(Jvm.current().javaVersion.majorVersion)
         toolchain.get().getInstallationPath().toString() == Jvm.current().javaHome.absolutePath
+    }
+
+    def "returns non-fallback current JVM toolchain for matching filter"() {
+        given:
+        def registry = createInstallationRegistry(["8", "9", "10"])
+        def toolchainFactory = newToolchainFactory(javaHome -> javaHome.toString().endsWith("8"))
+        def queryService = new JavaToolchainQueryService(registry, toolchainFactory, Mock(JavaToolchainProvisioningService), createProviderFactory(), TestUtil.objectFactory())
+        def versionToFind = JavaLanguageVersion.of(8)
+
+        when:
+        def filter = new DefaultToolchainSpec(TestUtil.objectFactory())
+        filter.languageVersion.set(versionToFind)
+        def toolchain = queryService.findMatchingToolchain(filter).get()
+
+        then:
+        !toolchain.isFallbackToolchain()
+        toolchain.languageVersion == versionToFind
+        toolchain.getInstallationPath().toString() == systemSpecificAbsolutePath("/path/8")
+    }
+
+    def "returns current JVM toolchain if requested"() {
+        given:
+        def registry = createInstallationRegistry(["8", "9", "10"])
+        def toolchainFactory = newToolchainFactory()
+        def queryService = new JavaToolchainQueryService(registry, toolchainFactory, Mock(JavaToolchainProvisioningService), createProviderFactory(), TestUtil.objectFactory())
+
+        when:
+        def filter = new CurrentJvmToolchainSpec(TestUtil.objectFactory())
+        def toolchain = queryService.findMatchingToolchain(filter)
+
+        then:
+        toolchain.isPresent()
+        !toolchain.get().isFallbackToolchain()
+        toolchain.get().languageVersion == JavaLanguageVersion.of(Jvm.current().javaVersion.majorVersion)
+        toolchain.get().getInstallationPath().toString() == Jvm.current().javaHome.absolutePath
+    }
+
+    /**
+     * This test validates that caching of toolchains works correctly,
+     * given that the fallback toolchain extends the current JVM toolchain,
+     * but must not be resolved for the filters matching current JVM.
+     */
+    def "returns fallback toolchain if requested even after returning current JVM"() {
+        given:
+        def registry = createInstallationRegistry(["8", "9", "10"])
+        def toolchainFactory = newToolchainFactory()
+        def queryService = new JavaToolchainQueryService(registry, toolchainFactory, Mock(JavaToolchainProvisioningService), createProviderFactory(), TestUtil.objectFactory())
+
+        when:
+        def currentJvmFilter = new CurrentJvmToolchainSpec(TestUtil.objectFactory())
+        def currentJvmToolchain = queryService.findMatchingToolchain(currentJvmFilter).get()
+        then:
+        !currentJvmToolchain.isFallbackToolchain()
+
+        when:
+        def fallbackFilter = new FallbackToolchainSpec(TestUtil.objectFactory())
+        def fallbackToolchain = queryService.findMatchingToolchain(fallbackFilter).get()
+        then:
+        fallbackToolchain.isFallbackToolchain()
+        currentJvmToolchain !== fallbackToolchain
+    }
+
+    /**
+     * This test validates that caching of toolchains works correctly,
+     * given that the fallback toolchain extends the current JVM toolchain,
+     * but must not be resolved for the filters matching current JVM.
+     */
+    def "returns non-fallback current JVM toolchain if requested even after returning fallback toolchain"() {
+        given:
+        def registry = createInstallationRegistry(["8", "9", "10"])
+        def toolchainFactory = newToolchainFactory()
+        def queryService = new JavaToolchainQueryService(registry, toolchainFactory, Mock(JavaToolchainProvisioningService), createProviderFactory(), TestUtil.objectFactory())
+
+        when:
+        def fallbackFilter = new FallbackToolchainSpec(TestUtil.objectFactory())
+        def fallbackToolchain = queryService.findMatchingToolchain(fallbackFilter).get()
+        then:
+        fallbackToolchain.isFallbackToolchain()
+
+        when:
+        def currentJvmFilter = new CurrentJvmToolchainSpec(TestUtil.objectFactory())
+        def currentJvmToolchain = queryService.findMatchingToolchain(currentJvmFilter).get()
+        then:
+        !currentJvmToolchain.isFallbackToolchain()
+        currentJvmToolchain !== fallbackToolchain
     }
 
     def "returns toolchain matching vendor"() {
@@ -226,10 +346,10 @@ class JavaToolchainQueryServiceTest extends Specification {
         def eventEmitter = Stub(BuildOperationProgressEventEmitter)
         def toolchainFactory = new JavaToolchainFactory(Mock(JvmMetadataDetector), compilerFactory, toolFactory, TestFiles.fileFactory(), eventEmitter) {
             @Override
-            Optional<JavaToolchain> newInstance(InstallationLocation javaHome, JavaToolchainInput input) {
+            Optional<JavaToolchain> newInstance(InstallationLocation javaHome, JavaToolchainInput input, boolean isFallbackToolchain) {
                 def vendor = javaHome.location.name.substring(2)
                 def metadata = newMetadata(new InstallationLocation(new File("/path/8"), javaHome.source), vendor)
-                return Optional.of(new JavaToolchain(metadata, compilerFactory, toolFactory, TestFiles.fileFactory(), input, eventEmitter))
+                return Optional.of(new JavaToolchain(metadata, compilerFactory, toolFactory, TestFiles.fileFactory(), input, isFallbackToolchain, eventEmitter))
             }
         }
         def queryService = new JavaToolchainQueryService(registry, toolchainFactory, Mock(JavaToolchainProvisioningService), createProviderFactory(), TestUtil.objectFactory())
@@ -345,10 +465,10 @@ class JavaToolchainQueryServiceTest extends Specification {
         def eventEmitter = Stub(BuildOperationProgressEventEmitter)
         def toolchainFactory = new JavaToolchainFactory(Mock(JvmMetadataDetector), compilerFactory, toolFactory, TestFiles.fileFactory(), eventEmitter) {
             @Override
-            Optional<JavaToolchain> newInstance(InstallationLocation javaHome, JavaToolchainInput input) {
+            Optional<JavaToolchain> newInstance(InstallationLocation javaHome, JavaToolchainInput input, boolean isFallbackToolchain) {
                 def metadata = newMetadata(javaHome)
                 if (metadata.isValidInstallation()) {
-                    def toolchain = new JavaToolchain(metadata, compilerFactory, toolFactory, TestFiles.fileFactory(), input, eventEmitter) {
+                    def toolchain = new JavaToolchain(metadata, compilerFactory, toolFactory, TestFiles.fileFactory(), input, isFallbackToolchain, eventEmitter) {
                         @Override
                         boolean isCurrentJvm() {
                             return currentJvmMapper.apply(javaHome.location)
