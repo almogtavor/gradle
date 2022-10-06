@@ -146,7 +146,9 @@ public class JavaToolchain implements Describable, JavaInstallationMetadata {
     }
 
     @Internal
-    public boolean isFallbackToolchain() { return isFallbackToolchain; }
+    public boolean isFallbackToolchain() {
+        return isFallbackToolchain;
+    }
 
     public RegularFile findExecutable(String toolName) {
         return getInstallationPath().file(getBinaryPath(toolName));
