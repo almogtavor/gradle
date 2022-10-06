@@ -85,23 +85,11 @@ class JavadocTest extends AbstractProjectBuilderSpec {
         when:
         task.executable = invalidJavadoc
         execute(task)
+
         then:
         def e = thrown(TaskExecutionException)
-        def cause = getRootCause(e) as InvalidUserDataException
+        def cause = TestUtil.getRootCause(e) as InvalidUserDataException
         cause.message.contains("The configured executable does not exist")
         cause.message.contains(invalidJavadoc)
-    }
-
-    private getRootCause(Throwable t) {
-        def cause = t
-        while (true) {
-            def nextCause = cause.cause
-            if (nextCause == null || nextCause === cause) {
-                break
-            }
-            cause = nextCause
-        }
-
-        return cause
     }
 }

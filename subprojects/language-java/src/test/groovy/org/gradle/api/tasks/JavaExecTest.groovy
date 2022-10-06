@@ -16,12 +16,10 @@
 
 package org.gradle.api.tasks
 
-import org.gradle.api.file.RegularFile
-import org.gradle.internal.jvm.Jvm
-import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.api.InvalidUserDataException
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.test.fixtures.AbstractProjectBuilderSpec
-import org.gradle.util.internal.TextUtil
+import org.gradle.util.TestUtil
 
 class JavaExecTest extends AbstractProjectBuilderSpec {
 
@@ -30,35 +28,18 @@ class JavaExecTest extends AbstractProjectBuilderSpec {
         project.extensions.add("javaToolchains", toolchainService)
     }
 
-    def "uses current JVM toolchain launcher as convention"() {
-        def task = project.tasks.create('execJava', JavaExec)
-        def javaHome = Jvm.current().javaHome
+    def 'fails if custom executable does not exist'() {
+        def task = project.tasks.create("run", JavaExec)
+        def invalidExecutable = "invalid"
 
         when:
-        def spec = task.createJavaExecAction()
-        def actualLauncher = task.javaLauncher.get()
+        task.executable = invalidExecutable
+        execute(task)
 
         then:
-        spec.executable == TextUtil.normaliseFileSeparators(new File(javaHome, "/bin/java").absolutePath)
-        actualLauncher.metadata.installationPath.toString() == javaHome.toString()
-    }
-
-    def "uses toolchain launcher over custom executable"() {
-        def task = project.tasks.create('execJava', JavaExec)
-        def launcher = Mock(JavaLauncher)
-
-        def toolchainExecutable = Mock(RegularFile)
-        toolchainExecutable.toString() >> "/test/toolchain/bin/java"
-        launcher.executablePath >> toolchainExecutable
-
-        given:
-        task.javaLauncher.set(launcher)
-        task.executable = "/test/custom/executable/java"
-
-        when:
-        def spec = task.createJavaExecAction()
-
-        then:
-        spec.executable == "/test/toolchain/bin/java"
+        def e = thrown(TaskExecutionException)
+        def cause = TestUtil.getRootCause(e) as InvalidUserDataException
+        cause.message.contains("The configured executable does not exist")
+        cause.message.contains(invalidExecutable)
     }
 }
