@@ -16,7 +16,6 @@
 
 package org.gradle.api.tasks.javadoc;
 
-import com.google.common.annotations.VisibleForTesting;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
 import org.gradle.api.Action;
@@ -189,8 +188,7 @@ public class Javadoc extends SourceTask {
         return sourceNames;
     }
 
-    @VisibleForTesting
-    JavadocSpec createJavadocSpec(StandardJavadocDocletOptions options) {
+    private JavadocSpec createJavadocSpec(StandardJavadocDocletOptions options) {
         JavadocSpec spec = new JavadocSpec();
         spec.setOptions(options);
         spec.setIgnoreFailures(!isFailOnError());

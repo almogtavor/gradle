@@ -17,18 +17,16 @@
 package org.gradle.api.tasks.javadoc
 
 import org.apache.commons.io.FileUtils
+import org.gradle.api.InvalidUserDataException
 import org.gradle.api.file.RegularFile
 import org.gradle.api.internal.file.TestFiles
-import org.gradle.api.internal.provider.AbstractProperty
+import org.gradle.api.tasks.TaskExecutionException
 import org.gradle.api.tasks.javadoc.internal.JavadocToolAdapter
-import org.gradle.external.javadoc.StandardJavadocDocletOptions
-import org.gradle.internal.jvm.Jvm
 import org.gradle.jvm.toolchain.JavaInstallationMetadata
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.test.fixtures.AbstractProjectBuilderSpec
 import org.gradle.util.TestUtil
-import org.gradle.util.internal.TextUtil
 
 class JavadocTest extends AbstractProjectBuilderSpec {
 
@@ -81,41 +79,29 @@ class JavadocTest extends AbstractProjectBuilderSpec {
         1 * tool.execute(_)
     }
 
-    def "uses current JVM toolchain tool as convention"() {
-        def javaHome = Jvm.current().javaHome
-
-        when:
-        def spec = task.createJavadocSpec(Mock(StandardJavadocDocletOptions))
-        def actualTool = task.javadocTool.get()
-
-        then:
-        spec.executable == TextUtil.normaliseFileSeparators(new File(javaHome, "/bin/javadoc").absolutePath)
-        actualTool.metadata.installationPath.toString() == javaHome.toString()
-    }
-
-    def "uses toolchain launcher over custom executable"() {
-        task.javadocTool.set(tool)
-        task.executable = "/test/custom/executable/java"
-
-        when:
-        def spec = task.createJavadocSpec(Mock(StandardJavadocDocletOptions))
-
-        then:
-        spec.executable == "/test/toolchain/bin/javadoc"
-    }
-
     def "fails if custom executable does not exist"() {
         def invalidJavadoc = "invalidjavadoc"
 
         when:
         task.executable = invalidJavadoc
-        task.createJavadocSpec(Mock(StandardJavadocDocletOptions))
-
+        execute(task)
         then:
-        def e = thrown(AbstractProperty.PropertyQueryException)
-        e.message.contains("Failed to query the value of task ':javadoc' property 'javadocTool'")
-        def cause = e.cause
+        def e = thrown(TaskExecutionException)
+        def cause = getRootCause(e) as InvalidUserDataException
         cause.message.contains("The configured executable does not exist")
         cause.message.contains(invalidJavadoc)
+    }
+
+    private getRootCause(Throwable t) {
+        def cause = t
+        while (true) {
+            def nextCause = cause.cause
+            if (nextCause == null || nextCause === cause) {
+                break
+            }
+            cause = nextCause
+        }
+
+        return cause
     }
 }
