@@ -28,7 +28,8 @@ import org.gradle.util.Requires
 import org.gradle.util.TestPrecondition
 import spock.lang.Ignore
 
-@Ignore
+// This is failing on release6x and we don't want to spent time on it
+@Requires(TestPrecondition.NOT_WINDOWS)
 @RequiresInstalledToolChain(ToolChainRequirement.SUPPORTS_32_AND_64)
 @UnsupportedWithConfigurationCache(because = "setup fails")
 class AssemblyLanguageIncrementalBuildIntegrationTest extends AbstractInstalledToolChainIntegrationSpec {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 the original author or authors.
+ * Copyright 2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,21 @@
  * limitations under the License.
  */
 
+package common
 
-package org.gradle.java.compile.incremental
+interface Jvm {
+    val version: JvmVersion
+    val vendor: JvmVendor
+}
 
-import spock.lang.Ignore
+data class DefaultJvm(
+    override val version: JvmVersion,
+    override val vendor: JvmVendor
+) : Jvm
 
-@Ignore("https://github.com/gradle/gradle-private/issues/3364")
-class CrossTaskIncrementalJavaCompilationIntegrationTest extends AbstractCrossTaskIncrementalJavaCompilationIntegrationTest {
-    boolean useJar = true
+object BuildToolBuildJvm : Jvm {
+    override val version: JvmVersion
+        get() = JvmVersion.java11
+    override val vendor: JvmVendor
+        get() = JvmVendor.openjdk
 }

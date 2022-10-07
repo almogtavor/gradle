@@ -36,6 +36,7 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.script
 import jetbrains.buildServer.configs.kotlin.v2019_2.failureConditions.BuildFailureOnText
 import jetbrains.buildServer.configs.kotlin.v2019_2.failureConditions.failOnText
 import jetbrains.buildServer.configs.kotlin.v2019_2.ui.add
+import java.util.Locale
 
 fun BuildSteps.customGradle(init: GradleBuildStep.() -> Unit, custom: GradleBuildStep.() -> Unit): GradleBuildStep =
     GradleBuildStep(init)
@@ -60,10 +61,19 @@ fun Requirements.requiresOs(os: Os) {
     contains("teamcity.agent.jvm.os.name", os.agentRequirement)
 }
 
-fun Requirements.requiresNoEc2Agent() {
+fun Requirements.requiresNotEc2Agent() {
     doesNotContain("teamcity.agent.name", "ec2")
     // US region agents have name "EC2-XXX"
     doesNotContain("teamcity.agent.name", "EC2")
+}
+
+/**
+ * We have some "shared" host where a Linux build agent and a Windows build agent
+ * both run on the same bare metal. Some builds require exclusive access to the
+ * hardware resources (e.g. performance test).
+ */
+fun Requirements.requiresNotSharedHost() {
+    doesNotContain("agent.host.type", "shared")
 }
 
 fun VcsSettings.filterDefaultBranch() {
@@ -71,7 +81,6 @@ fun VcsSettings.filterDefaultBranch() {
 }
 
 const val failedTestArtifactDestination = ".teamcity/gradle-logs"
-
 fun BuildType.applyDefaultSettings(os: Os = Os.LINUX, timeout: Int = 30, vcsRoot: String = "Gradle_Branches_GradlePersonalBranches") {
     artifactRules = """
         build/report-* => $failedTestArtifactDestination
@@ -161,3 +170,29 @@ fun Dependencies.compileAllDependency(compileAllId: String) {
         artifactRules = "build-receipt.properties => incoming-distributions"
     }
 }
+
+fun BuildType.paramsForBuildToolBuild(buildJvm: Jvm = BuildToolBuildJvm, os: Os, arch: Arch = Arch.AMD64) {
+    params {
+        param("env.BOT_TEAMCITY_GITHUB_TOKEN", "%github.bot-teamcity.token%")
+        param("env.GRADLE_CACHE_REMOTE_PASSWORD", "%gradle.cache.remote.password%")
+        param("env.GRADLE_CACHE_REMOTE_URL", "%gradle.cache.remote.url%")
+        param("env.GRADLE_CACHE_REMOTE_USERNAME", "%gradle.cache.remote.username%")
+
+        param("env.JAVA_HOME", javaHome(buildJvm, os, arch))
+        param("env.GRADLE_OPTS", "-Xmx1536m -XX:MaxPermSize=384m")
+        param("env.ANDROID_HOME", os.androidHome)
+        param("env.ANDROID_SDK_ROOT", os.androidHome)
+        param("env.GRADLE_INTERNAL_REPO_URL", "%gradle.internal.repository.url%")
+        if (os == Os.MACOS) {
+            // Use fewer parallel forks on macOs, since the agents are not very powerful.
+            param("maxParallelForks", "2")
+        }
+        if (os == Os.LINUX || os == Os.MACOS) {
+            param("env.LC_ALL", "en_US.UTF-8")
+        }
+    }
+}
+
+fun String.toCapitalized() = this.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+
+fun javaHome(jvm: Jvm, os: Os, arch: Arch = Arch.AMD64) = "%${os.name.lowercase()}.${jvm.version}.${jvm.vendor}.${arch.suffix}%"

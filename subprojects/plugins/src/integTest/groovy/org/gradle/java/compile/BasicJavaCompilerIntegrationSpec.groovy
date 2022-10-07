@@ -131,7 +131,8 @@ compileJava.options.debug = false
 
     @Ignore
     // JavaFx was removed in JDK 10
-    @Requires(TestPrecondition.JDK9_OR_EARLIER)
+    // We don't have Oracle Java 8 on Windows any more
+    @Requires([TestPrecondition.JDK9_OR_EARLIER, TestPrecondition.NOT_WINDOWS])
     def "compileJavaFx8Code"() {
         given:
         file("src/main/java/compile/test/FxApp.java") << '''
