@@ -481,6 +481,70 @@ class JavaCompileToolchainIntegrationTest extends AbstractIntegrationSpec {
         "assigned tool"  | "over everything else"               | true     | true         | true           | true
     }
 
+    def "uses #what toolchain #when (without java plugin)"() {
+        JvmInstallationMetadata jdkMetadataCurrent = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        // When at least one toolchain is used for configuration, expect the first toolchain to be the target.
+        // Otherwise, expect the current toolchain as a fallback
+        JvmInstallationMetadata targetJdk = jdkMetadataCurrent
+        def useJdk = {
+            if (targetJdk === jdkMetadataCurrent) {
+                targetJdk = jdkMetadata1
+                return jdkMetadata1
+            } else {
+                return jdkMetadata2
+            }
+        }
+
+        // Compile with the minimum version to make sure the runtime can execute the compiled class
+        def compileWithVersion = [jdkMetadataCurrent, jdkMetadata1, jdkMetadata2].collect {
+            it.languageVersion.majorVersion.toInteger()
+        }.min()
+
+        buildFile << """
+            plugins {
+                id 'jvm-toolchains'
+            }
+
+            task compileJava(type: JavaCompile) {
+                classpath = project.layout.files()
+                source = project.layout.files("src/main/java")
+                destinationDirectory = project.layout.buildDirectory.dir("classes/java/main")
+                sourceCompatibility = "${compileWithVersion}"
+                targetCompatibility = "${compileWithVersion}"
+            }
+        """
+
+        // Order of if's is important as it denotes toolchain priority
+        if (withTool) {
+            configureTool(useJdk())
+        }
+        if (withJavaHome) {
+            configureForkOptionsJavaHome(useJdk())
+        }
+        if (withExecutable) {
+            configureForkOptionsExecutable(useJdk())
+        }
+
+        when:
+        withInstallations(jdkMetadataCurrent, jdkMetadata1, jdkMetadata2).run(":compileJava", "--info")
+
+        then:
+        executedAndNotSkipped(":compileJava")
+        outputContains("Compiling with toolchain '${targetJdk.javaHome.toAbsolutePath()}'")
+
+        where:
+        what            | when                                 | withTool | withJavaHome | withExecutable
+        "current JVM"   | "when toolchains are not configured" | false    | false        | false
+        "executable"    | "when configured"                    | false    | false        | true
+        "java home"     | "when configured"                    | false    | true         | false
+        "assigned tool" | "when configured"                    | true     | false        | false
+        "java home"     | "over executable"                    | false    | true         | true
+        "assigned tool" | "over everything else"               | true     | true         | true
+    }
+
     private TestFile configureJavaExtension(JvmInstallationMetadata jdk) {
         buildFile << """
             java {
