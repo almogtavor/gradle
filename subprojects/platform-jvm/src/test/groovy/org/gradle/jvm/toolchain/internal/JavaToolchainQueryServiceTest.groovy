@@ -487,7 +487,7 @@ class JavaToolchainQueryServiceTest extends Specification {
             return JvmInstallationMetadata.failure(javaHome.location, "errorMessage")
         }
         Mock(JvmInstallationMetadata) {
-            getLanguageVersion() >> JavaVersion.toVersion(javaHome.location.name)
+            getLanguageVersion() >> JavaVersion.toVersion(javaHome.location.name.replaceFirst("^jdk-", ""))
             getJavaHome() >> javaHome.location.absoluteFile.toPath()
             getJavaVersion() >> javaHome.location.name.replace("zzz", "999")
             isValidInstallation() >> true
