@@ -105,6 +105,102 @@ class TestTaskToolchainIntegrationTest extends AbstractIntegrationSpec {
         "assigned tool"  | "over everything else"               | true     | true           | true
     }
 
+    // TODO: make the tests run
+    def "uses #what toolchain #when (without java plugin)"() {
+        JvmInstallationMetadata jdkMetadataCurrent = getJvmInstallationMetadata(Jvm.current())
+        JvmInstallationMetadata jdkMetadata1 = getJvmInstallationMetadata(differentVersion)
+        JvmInstallationMetadata jdkMetadata2 = getJvmInstallationMetadata(getDifferentVersion { it.languageVersion != jdkMetadata1.languageVersion })
+
+        // When at least one toolchain is used for configuration, expect the first toolchain to be the target.
+        // Otherwise, expect the current toolchain as a fallback
+        JvmInstallationMetadata targetJdk = jdkMetadataCurrent
+        def useJdk = {
+            if (targetJdk === jdkMetadataCurrent) {
+                targetJdk = jdkMetadata1
+                return jdkMetadata1
+            } else {
+                return jdkMetadata2
+            }
+        }
+
+        file("src/test/java/ToolchainTest.java") << """
+            import org.junit.*;
+
+            public class ToolchainTest {
+               @Test
+               public void test() {
+                  System.out.println("Tests running with " + System.getProperty("java.home"));
+               }
+            }
+        """
+
+        // Compile with the minimum version to make sure the runtime can execute the compiled class
+        def compileWithVersion = [jdkMetadataCurrent, jdkMetadata1, jdkMetadata2].collect {
+            it.languageVersion.majorVersion.toInteger()
+        }.min()
+
+        buildFile << """
+            plugins {
+                id 'jvm-toolchains'
+            }
+
+            ${mavenCentralRepository()}
+
+            configurations {
+                testImplementation {
+                    files(project.layout.files("src/test/java"))
+                }
+            }
+
+            dependencies {
+                testImplementation 'junit:junit:4.13'
+            }
+
+            def buildDir = project.layout.buildDirectory
+
+            task compileJava(type: JavaCompile) {
+                classpath = configurations.testImplementation.incoming.files
+                source = project.layout.files("src/test/java")
+                destinationDirectory = buildDir.dir("classes/java/test")
+                sourceCompatibility = "${compileWithVersion}"
+                targetCompatibility = "${compileWithVersion}"
+            }
+
+            task test(type: Test) {
+                useJUnit()
+                testClassesDirs = buildDir.files("classes/java/test")
+                classpath = buildDir.files("classes/java/test")
+                binaryResultsDirectory.set(buildDir.dir("test-results"))
+                reports.junitXml.required.set(false)
+                reports.html.outputLocation.set(buildDir.dir("test-results"))
+            }
+
+            test.dependsOn compileJava
+        """
+
+        // Order of if's is important as it denotes toolchain priority
+        if (withTool) {
+            configureLauncher(useJdk())
+        }
+        if (withExecutable) {
+            configureExecutable(useJdk())
+        }
+
+        when:
+        withInstallations(jdkMetadataCurrent, jdkMetadata1, jdkMetadata2).run(":test", "--info")
+
+        then:
+        executedAndNotSkipped(":test")
+        outputContains("Command: ${targetJdk.javaHome.toAbsolutePath()}")
+
+        where:
+        what            | when                                 | withTool | withExecutable
+        "current JVM"   | "when toolchains are not configured" | false    | false
+        "executable"    | "when configured"                    | false    | true
+        "assigned tool" | "when configured"                    | true     | false
+        "assigned tool" | "over everything else"               | true     | true
+    }
+
     private TestFile configureJavaExtension(JvmInstallationMetadata jdk) {
         buildFile << """
             java {
