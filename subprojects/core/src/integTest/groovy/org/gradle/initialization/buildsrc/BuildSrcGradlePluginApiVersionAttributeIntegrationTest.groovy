@@ -54,12 +54,15 @@ class BuildSrcGradlePluginApiVersionAttributeIntegrationTest extends AbstractInt
                 }
             }
 
-            build.dependsOn(task)
-            build.dependsOn(":sub:checkConfigurations")
+
+            tasks.register("verify") {
+                dependsOn(task)
+                dependsOn(":sub:checkConfigurations")
+            }
         """
 
         when:
-        succeeds("help")
+        succeeds(":buildSrc:verify")
 
         then:
         def configurationsWithAttribute =

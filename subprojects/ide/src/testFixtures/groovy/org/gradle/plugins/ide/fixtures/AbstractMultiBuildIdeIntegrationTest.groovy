@@ -35,11 +35,10 @@ abstract class AbstractMultiBuildIdeIntegrationTest extends AbstractIntegrationS
     def "buildSrc project can apply IDE plugin"() {
         file("buildSrc/build.gradle") << """
             apply plugin: '${pluginId}'
-            tasks.build.dependsOn tasks.${workspaceTask}
         """
 
         expect:
-        succeeds()
+        succeeds(":buildSrc:${workspaceTask}")
         def workspace = workspace(file("buildSrc"), "buildSrc")
         if (libraryPluginId == "java-library") {
             def project = project(file("buildSrc"), "buildSrc")
