@@ -16,7 +16,6 @@
 
 package org.gradle.api.tasks.testing;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import groovy.lang.Closure;
 import groovy.lang.DelegatesTo;
@@ -630,11 +629,6 @@ public class Test extends AbstractTestTask implements JavaForkOptions, PatternFi
      */
     @Override
     protected JvmTestExecutionSpec createTestExecutionSpec() {
-        return createJvmTestExecutionSpec();
-    }
-
-    @VisibleForTesting
-    JvmTestExecutionSpec createJvmTestExecutionSpec() {
         JavaForkOptions javaForkOptions = getForkOptionsFactory().newJavaForkOptions();
         copyTo(javaForkOptions);
         JavaModuleDetector javaModuleDetector = getJavaModuleDetector();
