@@ -67,7 +67,7 @@ import java.util.stream.Collectors;
  * @see PmdExtension
  */
 @CacheableTask
-public class Pmd extends SourceTask implements VerificationTask, Reporting<PmdReports> {
+public abstract class Pmd extends SourceTask implements VerificationTask, Reporting<PmdReports> {
 
     private FileCollection pmdClasspath;
     private List<String> ruleSets;
