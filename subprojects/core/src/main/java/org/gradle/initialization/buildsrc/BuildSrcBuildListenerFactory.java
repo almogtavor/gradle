@@ -24,6 +24,7 @@ import org.gradle.api.attributes.Category;
 import org.gradle.api.attributes.LibraryElements;
 import org.gradle.api.attributes.Usage;
 import org.gradle.api.internal.GradleInternal;
+import org.gradle.api.internal.initialization.DefaultScriptClassPathResolver;
 import org.gradle.api.internal.initialization.ScriptClassPathResolver;
 import org.gradle.api.internal.model.NamedObjectInstantiator;
 import org.gradle.api.internal.project.ProjectInternal;
@@ -43,16 +44,14 @@ public class BuildSrcBuildListenerFactory {
 
     private final Action<ProjectInternal> buildSrcRootProjectConfiguration;
     private final NamedObjectInstantiator instantiator;
-    private final ScriptClassPathResolver resolver;
 
-    public BuildSrcBuildListenerFactory(Action<ProjectInternal> buildSrcRootProjectConfiguration, NamedObjectInstantiator instantiator, ScriptClassPathResolver resolver) {
+    public BuildSrcBuildListenerFactory(Action<ProjectInternal> buildSrcRootProjectConfiguration, NamedObjectInstantiator instantiator) {
         this.buildSrcRootProjectConfiguration = buildSrcRootProjectConfiguration;
         this.instantiator = instantiator;
-        this.resolver = resolver;
     }
 
     Listener create() {
-        return new Listener(buildSrcRootProjectConfiguration, instantiator, resolver);
+        return new Listener(buildSrcRootProjectConfiguration, instantiator);
     }
 
     /**
@@ -64,12 +63,10 @@ public class BuildSrcBuildListenerFactory {
         private ProjectState rootProjectState;
         private final Action<ProjectInternal> rootProjectConfiguration;
         private final NamedObjectInstantiator instantiator;
-        private final ScriptClassPathResolver resolver;
 
-        private Listener(Action<ProjectInternal> rootProjectConfiguration, NamedObjectInstantiator instantiator, ScriptClassPathResolver resolver) {
+        private Listener(Action<ProjectInternal> rootProjectConfiguration, NamedObjectInstantiator instantiator) {
             this.rootProjectConfiguration = rootProjectConfiguration;
             this.instantiator = instantiator;
-            this.resolver = resolver;
         }
 
         @Override
@@ -99,7 +96,10 @@ public class BuildSrcBuildListenerFactory {
         }
 
         public ClassPath getRuntimeClasspath() {
-            return rootProjectState.fromMutableState(p -> resolver.resolveClassPath(classpathConfiguration));
+            return rootProjectState.fromMutableState(project -> {
+                ScriptClassPathResolver resolver = new DefaultScriptClassPathResolver(Collections.emptyList());
+                return resolver.resolveClassPath(classpathConfiguration);
+            });
         }
     }
 }
