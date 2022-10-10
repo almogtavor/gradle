@@ -156,7 +156,7 @@ import static org.gradle.util.internal.ConfigureUtil.configure;
  *
  * </pre>
  */
-public class IdeaModule {
+public abstract class IdeaModule {
 
     private String name;
     private Set<File> sourceDirs;
