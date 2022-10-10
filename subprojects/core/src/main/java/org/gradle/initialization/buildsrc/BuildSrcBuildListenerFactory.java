@@ -17,6 +17,7 @@
 package org.gradle.initialization.buildsrc;
 
 import org.gradle.api.Action;
+import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.internal.GradleInternal;
 import org.gradle.api.internal.initialization.DefaultScriptClassPathResolver;
@@ -34,6 +35,7 @@ import org.gradle.internal.service.scopes.Scopes;
 import org.gradle.internal.service.scopes.ServiceScope;
 
 import java.util.Collections;
+import java.util.Set;
 
 @ServiceScope(Scopes.Build.class)
 public class BuildSrcBuildListenerFactory {
@@ -80,6 +82,7 @@ public class BuildSrcBuildListenerFactory {
         public void applyTasksTo(Context context, ExecutionPlan plan) {
             rootProjectState.applyToMutableState(rootProject -> {
                 classpathConfiguration = rootProject.getConfigurations().create("buildScriptClasspath");
+                classpathConfiguration.setCanBeConsumed(false);
                 resolver.prepareClassPath(classpathConfiguration, rootProject.getDependencies());
                 classpathConfiguration.getDependencies().add(rootProject.getDependencies().create(rootProject));
                 plan.addEntryTasks(classpathConfiguration.getBuildDependencies().getDependencies(null));
