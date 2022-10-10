@@ -21,9 +21,6 @@ import org.gradle.api.artifacts.DependencyConstraintSet
 import org.gradle.api.artifacts.dsl.DependencyConstraintHandler
 import org.gradle.api.artifacts.dsl.DependencyHandler
 import org.gradle.api.artifacts.dsl.RepositoryHandler
-import org.gradle.api.attributes.Bundling
-import org.gradle.api.attributes.Usage
-import org.gradle.api.attributes.java.TargetJvmVersion
 import org.gradle.api.internal.artifacts.DependencyResolutionServices
 import org.gradle.api.internal.attributes.AttributeContainerInternal
 import org.gradle.api.internal.attributes.AttributesSchemaInternal
