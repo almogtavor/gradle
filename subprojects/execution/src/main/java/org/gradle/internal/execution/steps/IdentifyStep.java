@@ -44,19 +44,19 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
 
     @Override
     public R execute(UnitOfWork work, C context) {
-        return delegate.execute(work, executeInternal(work, context));
+        return delegate.execute(work, createIdentityContext(work, context));
     }
 
     @Override
     public <T> Deferrable<Try<T>> executeDeferred(UnitOfWork work, C context, Cache<Identity, Try<T>> cache) {
-        return delegate.executeDeferred(work, executeInternal(work, context), cache);
+        return delegate.executeDeferred(work, createIdentityContext(work, context), cache);
     }
 
     @Nonnull
-    private IdentityContext executeInternal(UnitOfWork work, C context) {
+    private IdentityContext createIdentityContext(UnitOfWork work, C context) {
         Class<? extends UnitOfWork> workType = work.getClass();
         return operation(operationContext -> {
-                IdentityContext identityContext = createIdentityContext(work, context);
+                IdentityContext identityContext = createIdentityContextInternal(work, context);
                 String identityUniqueId = identityContext.getIdentity().getUniqueId();
                 operationContext.setResult(new Operation.Result() {
                     @Override
@@ -78,7 +78,7 @@ public class IdentifyStep<C extends ExecutionRequestContext, R extends Result> e
     }
 
     @Nonnull
-    private IdentityContext createIdentityContext(UnitOfWork work, C context) {
+    private IdentityContext createIdentityContextInternal(UnitOfWork work, C context) {
         InputFingerprinter.Result inputs = work.getInputFingerprinter().fingerprintInputProperties(
             ImmutableSortedMap.of(),
             ImmutableSortedMap.of(),
