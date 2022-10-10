@@ -31,6 +31,10 @@ abstract class AbstractMultiBuildIdeIntegrationTest extends AbstractIntegrationS
     abstract IdeWorkspaceFixture workspace(TestFile workspaceDir, String ideWorkspaceName)
     abstract IdeProjectFixture project(TestFile projectDir, String ideProjectName)
 
+    @ToBeFixedForConfigurationCache(bottomSpecs = [
+        "XCodeMultiBuildIntegrationTest",
+        "VisualStudioMultiBuildIntegrationTest"
+    ])
     @Issue("https://github.com/gradle/gradle/issues/5110")
     def "buildSrc project can apply IDE plugin"() {
         file("buildSrc/build.gradle") << """
