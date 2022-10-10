@@ -24,6 +24,7 @@ import org.gradle.api.tasks.compile.CompileOptions
 import org.gradle.internal.jvm.Jvm
 import org.gradle.jvm.toolchain.JavaInstallationMetadata
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.util.TestUtil
 import spock.lang.Specification
 import spock.lang.Subject
 
@@ -39,7 +40,7 @@ class DefaultScalaJavaJointCompileSpecFactoryTest extends Specification {
         metadata.installationPath >> TestFiles.fileFactory().dir(javaHome)
         metadata.isCurrentJvm() >> (Jvm.current().javaHome == javaHome)
 
-        CompileOptions options = new CompileOptions(Mock(ObjectFactory))
+        CompileOptions options = TestUtil.objectFactory().newInstance(CompileOptions, Mock(ObjectFactory))
         options.fork = fork
         DefaultScalaJavaJointCompileSpecFactory factory = new DefaultScalaJavaJointCompileSpecFactory(options, metadata)
 
