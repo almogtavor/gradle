@@ -69,7 +69,7 @@ class BuildSrcGradlePluginApiVersionAttributeIntegrationTest extends AbstractInt
             output.findAll(">>> .*").collect {it.takeAfter(">>> ").split("=") }.collectEntries()
 
         configurationsWithAttribute ==
-            ["compileClasspath", "runtimeClasspath", "testCompileClasspath", "testRuntimeClasspath", "otherCompileClasspath", "otherRuntimeClasspath"]
+            ["buildScriptClasspath", "compileClasspath", "runtimeClasspath", "testCompileClasspath", "testRuntimeClasspath", "otherCompileClasspath", "otherRuntimeClasspath"]
                 .collectEntries { [it, GradleVersion.current().getVersion()] }
     }
 }
