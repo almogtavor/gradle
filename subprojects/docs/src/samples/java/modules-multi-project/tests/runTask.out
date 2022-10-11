@@ -1,7 +1,7 @@
-> Task :buildSrc:processResources
-> Task :buildSrc:pluginDescriptors
-> Task :buildSrc:classes
-> Task :buildSrc:jar
+> Task :buildSrc:processResources UP-TO-DATE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
 > Task :list:compileJava UP-TO-DATE
 > Task :list:processResources NO-SOURCE
 > Task :list:classes UP-TO-DATE
