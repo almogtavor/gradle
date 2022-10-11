@@ -1,5 +1,5 @@
 > Task :buildSrc:processResources
-> Task :buildSrc:compileJava
+> Task :buildSrc:pluginDescriptors
 > Task :buildSrc:classes
 > Task :buildSrc:jar
 > Task :list:compileJava UP-TO-DATE

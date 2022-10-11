@@ -1,5 +1,5 @@
-> Task :buildSrc:compileJava NO-SOURCE
 > Task :buildSrc:processResources
+> Task :buildSrc:pluginDescriptors
 > Task :buildSrc:classes
 > Task :buildSrc:jar
 > Task :list:compileJava
